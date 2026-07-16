@@ -23,6 +23,7 @@ This image demonstrates the FastAPI pipeline successfully fetching the nested en
 
 #### 3. Final Rendered Domain Model
 This image shows the final rendered diagram generated directly from the pipeline's output. It proves the backend rule engine accurately handled and mapped access modifiers, complex data types, and structural relationship multiplicities.
+I copied the producted PlantUML syntax and pasted on "https://www.planttext.com/" to produce this. This won't be needed in the next demos as i would have implemented it within my system for rendering the produced Diagram
 ![Generated Diagram From Text](Demo_1_Outputs/Generated_Diagram_from_Text.png)
 
 ---
