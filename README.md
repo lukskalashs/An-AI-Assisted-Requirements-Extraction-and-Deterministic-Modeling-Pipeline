@@ -2,6 +2,7 @@
 
 **Author:** Lukhanyo Floris Kalashe (2023575000)
 **Project:** CSIS6809 Honours Project
+**Supervisor:** Mr W.S.J Marais
 
 ## Mid-Year Demo 1 Update
 The core backend architecture for this Model-Driven Architecture (MDA) pipeline is now fully operational. The system successfully bridges the gap between unconstrained natural language and deterministic software modeling.
