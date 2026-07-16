@@ -18,11 +18,15 @@ Below is the visual proof of the system's successful end-to-end execution.
 This FastAPI backend exposes a fully documented, interactive API. The endpoints manage the entire lifecycle from document ingestion to extraction and diagram generation.
 ![Swagger API Endpoints](Demo_1_Outputs/Swagger_API_Endpoints.png)
 
-#### 2. Database to PlantUML Compilation
+#### 2. Data Validation Models (Pydantic Schemas)
+The API strictly validates all incoming and outgoing data, including the LLM's JSON output, using robust Pydantic schemas. This ensures that the extracted software requirements perfectly match the expected relational structure before persistence.
+![Swagger API Schemas](Demo_1_Outputs/Pydantic_Schema.png)
+
+#### 3. Database to PlantUML Compilation
 This image demonstrates the FastAPI pipeline successfully fetching the nested entities from the SQLite database and deterministically compiling them into syntactically perfect PlantUML text.
 ![Database PlantUML Output Text](Demo_1_Outputs/Database_plantuml_output_text.png)
 
-#### 3. Final Rendered Domain Model
+#### 4. Final Rendered Domain Model
 This image shows the final rendered diagram generated directly from the pipeline's output. It proves the backend rule engine accurately handled and mapped access modifiers, complex data types, and structural relationship multiplicities.
 I copied the producted PlantUML syntax and pasted on "https://www.planttext.com/" to produce this. This won't be needed in the next demos as i would have implemented it within my system for rendering the produced Diagram
 ![Generated Diagram From Text](Demo_1_Outputs/Generated_Diagram_from_Text.png)
