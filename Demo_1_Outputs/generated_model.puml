@@ -1,0 +1,80 @@
+@startuml
+skinparam classAttributeIconSize 0
+top to bottom direction
+
+class JobSeeker {
+    +firstName : String
+    +lastName : String
+    +email : String
+    +mobileNumber : String
+    -password : String
+    +gender : String
+    +education : List<String>
+    +workExperience : List<String>
+    +skills : List<String>
+    +preferences : Map<String, String>
+    -privacySettings : Map<String, Boolean>
+    +register() : boolean
+    +updateProfile() : void
+    +setVisibilityPreference() : void
+}
+
+class Employer {
+    +companyName : String
+    +email : String
+    +mobileNumber : String
+    +companyId : String
+    +registrationNumber : String
+    +website : String
+    +industry : String
+    +companySize : String
+    +address : String
+    +description : String
+    -registrationDocuments : List<String>
+    +register() : boolean
+    +manageJobPostings() : List<JobPosting>
+    +verifyEmployer() : boolean
+}
+
+class JobPosting {
+    +title : String
+    +summary : String
+    +requiredSkills : List<String>
+    +contractType : String
+    +educationalLevel : String
+    +applicationDeadline : Date
+    +genderPreference : String
+    +location : String
+    -jobId : String
+    +createJobPosting() : boolean
+    +updateJobPosting() : boolean
+    +getJobDetails() : JobPosting
+}
+
+class AdminUser {
+    +username : String
+    -password : String
+    +role : String
+    +manageUsers() : void
+    +generateReports() : List<Report>
+}
+
+class Notification {
+    -notificationId : String
+    +content : String
+    +recipient : String
+    +timestamp : Date
+    +type : String
+    +sendEmailNotification() : void
+    +sendSMSNotification() : void
+    +sendInAppNotification() : void
+}
+
+JobSeeker "0..*" -- "0..*" JobPosting
+Employer "1" *-- "0..*" JobPosting
+AdminUser "1" -- "0..*" JobSeeker
+AdminUser "1" -- "0..*" Employer
+Notification "0..*" -- "1" JobSeeker
+Notification "0..*" -- "1" Employer
+
+@enduml
