@@ -1,0 +1,33 @@
+using System;
+using System.Collections.Generic;
+
+namespace GeneratedDomainModels
+{
+    /// <summary>
+    /// Auto-generated class for {{ class_name }}.
+    /// Extracted via AI-Assisted Requirements Pipeline.
+    /// </summary>
+    public class {{ class_name }}
+    {
+        // Primary Key
+        public int {{ class_name }}Id { get; set; }
+
+        // Properties
+{% for prop in properties %}
+        public {{ prop.type }} {{ prop.name }} { get; set; }
+{% endfor %}
+
+        // Navigation Properties (Relationships)
+{% for nav in navigation_properties %}
+        public {{ nav.type }} {{ nav.name }} { get; set; }
+{% endfor %}
+
+        // Constructor
+        public {{ class_name }}()
+        {
+{% for init in initializers %}
+            {{ init.name }} = new {{ init.type }}();
+{% endfor %}
+        }
+    }
+}

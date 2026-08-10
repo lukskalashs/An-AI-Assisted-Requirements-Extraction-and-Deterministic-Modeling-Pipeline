@@ -11,6 +11,12 @@ from services.nlp_processor import chunk_text
 from services.llm_pipeline import extracted_uml_entities_from_chunks
 from models.database import UMLModel, UMLClass, UMLAttribute, UMLRelationship, UMLMethod
 from services.uml_generator import generate_plantuml_syntax
+from services.conflict_detector import analyse_model_conflicts
+from services.erd_visual_generator import generate_plantuml_erd
+from services.code_generator import generate_csharp_classes
+from services.yaml_generator import generate_openapi_yaml
+from fastapi import Response 
+# from generators.erd_generator import generate_sql_ddl
 
 
 # Create the database tables
@@ -161,6 +167,11 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
     # Send to the LLM pipeline to extract UML entities
     extracted_json = extracted_uml_entities_from_chunks(chunks)
 
+    extracted_classes = extracted_json.get("classes", [])
+    extacted_relationships = extracted_json.get("relationships",[])
+    model_warnings = analyse_model_conflicts(extracted_classes, extacted_relationships)
+
+
     # Mapping, Primary UMLModel container
 
     new_model = UMLModel(
@@ -247,7 +258,8 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
         "model_id": new_model.model_id,
         "document_id": document.document_id,
         "classes_extracted_count": len(class_name_map),
-        "relationships_extracted_count": relationships_saved
+        "relationships_extracted_count": relationships_saved,
+        "warnings": model_warnings
     }
 
 
@@ -329,6 +341,69 @@ def update_uml_class(class_id:int, class_update: schemas.ClassBase, db: Session 
     return db_class
 
 
+@app.get("/models/{model_id}/erd-visual")
+def get_visual_erd_diagram(model_id: int, db: Session = Depends(get_db)):
+    """
+    Phase 2: Generates a normalized Entity-Relationship Diagram (ERD) (Crow's Foot) notation.
+    Automatically resolves Many-to-Many relationships into Junction Tables.
+    """
+    # Verify the model exists
+    db_model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found!")
+    
+    # Run the 4-Pass Schema Compiler to get the Visual Syntax
+    plantuml_syntax = generate_plantuml_erd(db, model_id)
+    
+    if not plantuml_syntax:
+        raise HTTPException(status_code=400, detail="Could not generate ERD. Ensure the model has extracted classes.")
+    
+    return {
+        "message": "Visual ERD syntax successfully generated.",
+        "model_id": model_id,
+        "plantuml_erd_syntax": plantuml_syntax
+    }
+
+@app.get("/models/{model_id}/code/csharp")
+def export_csharp_code(model_id: int, db: Session = Depends(get_db)):
+    """
+    Phase 2 (Tier 2): Generates C# Entity classes based on the validated UML model.
+    Proves the system can generate application-layer boilerplate deterministically.
+    """
+    # Verify the model exists
+    db_model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found!")
+    
+    generated_classes = generate_csharp_classes(db, model_id)
+    
+    if not generated_classes:
+        raise HTTPException(status_code=400, detail="Could not generate code. Ensure the model has extracted classes.")
+    
+    return {
+        "message": "C# Code successfully generated.",
+        "model_id": model_id,
+        "classes": generated_classes
+    }
+
+@app.get("/models/{model_id}/openapi")
+def export_openapi_contract(model_id: int, db: Session = Depends(get_db)):
+    """
+    Phase 2 (Tier 2): Generates the OpenAPI 3.0 YAML Contract for the extracted models.
+    """
+    # Verify the model exists
+    db_model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found!")
+    
+    yaml_string = generate_openapi_yaml(db, model_id)
+    
+    if not yaml_string:
+        raise HTTPException(status_code=400, detail="Could not generate OpenAPI spec.")
+    
+    # We return it as a raw text response so the browser/frontend can save it as a .yaml file easily
+    return Response(content=yaml_string, media_type="text/yaml")
 
 
 if __name__ == "__main__":

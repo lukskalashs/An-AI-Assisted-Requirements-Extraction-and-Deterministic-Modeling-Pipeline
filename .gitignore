@@ -8,3 +8,18 @@
 
 # Database
 **/app.db
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node/Angular
+node_modules/
+dist/
+.angular/
+
+# OS
+.DS_Store
+
+.env
