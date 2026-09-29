@@ -1,0 +1,10 @@
+# Environments
+**/.env
+**/.env.*
+
+# Python Virtual Environment
+**/venv/
+**/__pycache__/
+
+# Database
+**/app.db
