@@ -1,0 +1,66 @@
+<div class="upload-page flex items-center justify-center min-h-screen p-4">
+  <div class="card upload-card w-full max-w-lg">
+    <div class="card-body text-center">
+      
+      <!-- Header -->
+      <h2 class="text-3xl font-extrabold text-primary mb-2">Upload SRS Document</h2>
+      <p class="text-muted mb-6">Select a Software Requirements Specification document to automatically extract UML entities.</p>
+      
+      <!-- File Input -->
+      <div class="form-control w-full max-w-xs mx-auto">
+        <input 
+          type="file" 
+          class="file-input file-input-bordered file-input-primary w-full shadow-sm" 
+          accept=".txt,.pdf"
+          (change)="onFileSelected($event)" 
+        />
+        <label class="label">
+          <span class="label-text-alt text-muted">Supported formats: .PDF, .TXT</span>
+        </label>
+        @if (selectedFile) {
+          <div class="selected-file" aria-live="polite">
+            <span class="selected-file-label">Selected document</span>
+            <strong>{{ selectedFile.name }}</strong>
+          </div>
+        }
+      </div>
+
+      <!-- Error Message Banner -->
+      @if (errorMessage) {
+        <div class="alert alert-error upload-alert mt-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span>{{ errorMessage }}</span>
+        </div>
+      }
+
+      @if (hasPipelineStats) {
+        <section class="pipeline-stats text-left mt-6 rounded-lg p-4" aria-live="polite">
+          <h3 class="font-bold text-primary">
+            NLP Pipeline
+          </h3>
+          <ul class="mt-2 space-y-1 font-mono text-sm">
+            <li>--- NLP PIPELINE ---</li>
+            <li>sanitised raw text.</li>
+            <li>Tokenized {{ pipelineStats.sentence_count }} sentences.</li>
+            <li>Generated {{ pipelineStats.chunk_count }} contextual chunks with {{ pipelineStats.overlap_words }}-word sliding overlap.</li>
+          </ul>
+        </section>
+      }
+
+      <!-- Submit Button -->
+      <div class="card-actions justify-center mt-8">
+        <button 
+          class="btn btn-primary w-full max-w-xs text-lg" 
+          [disabled]="!selectedFile || isProcessing"
+          (click)="processDocument()">
+          <!-- Loading Spinner -->
+          @if (isProcessing) {
+            <span class="loading loading-spinner"></span>
+          }
+          {{ isProcessing ? 'Extracting Entities...' : 'Upload & Process' }}
+        </button>
+      </div>
+      
+    </div>
+  </div>
+</div>

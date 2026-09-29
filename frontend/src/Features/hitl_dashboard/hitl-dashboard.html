@@ -1,0 +1,387 @@
+<div class="dashboard-shell min-h-screen p-8">
+  <div class="dashboard-content w-full">
+    
+    <!-- Header -->
+    <div class="dashboard-header flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-4xl font-extrabold text-primary">Human-in-the-Loop Validation</h1>
+        <p class="text-muted mt-2">Review, edit, and confirm the extracted entities before generating the architecture.</p>
+      </div>
+      <!-- Confirm Button (UC-10) -->
+      <button 
+        class="btn btn-success" 
+        [disabled]="isLoading || !umlModel"
+        (click)="confirmAndGenerate()">
+        @if (isLoading) {
+          <span class="loading loading-spinner"></span>
+        }
+        Confirm and Generate
+      </button>
+    </div>
+
+    <!-- Loading / Error States -->
+    @if (isLoading && !umlModel) {
+      <div class="flex justify-center py-20">
+        <span class="loading loading-bars loading-lg text-primary"></span>
+      </div>
+    }
+    
+    @if (errorMessage) {
+      <div class="alert alert-error dashboard-alert mb-6">
+        <span>{{ errorMessage }}</span>
+      </div>
+    }
+
+    <!-- Extracted Data Tables (UC-08) -->
+    @if (umlModel) {
+      <div class="extracted-data-stack">
+        
+        <!-- Classes & Attributes Table -->
+        <div class="card extracted-data-card">
+          <div class="card-body">
+            <div class="flex items-center justify-between border-b pb-2">
+              <h2 class="card-title text-2xl">Extracted Classes</h2>
+              <button class="btn btn-sm btn-primary" (click)="openNewClassModal()">Add</button>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+              <table class="extracted-data-table table table-zebra w-full">
+                <thead>
+                  <tr>
+                    <th class="w-1/5">Class Name</th>
+                    <th class="w-1/2">Attributes</th>
+                    <th class="w-1/5">Methods</th>
+                    <th class="w-24 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (cls of umlModel.classes; track cls.class_name) {
+                    <tr>
+                      <td class="font-bold text-primary truncate">
+                        <button class="entity-link" (click)="openEvidence(cls, 'class')">{{ cls.class_name }}</button>
+                        <span class="entity-kind-badge badge badge-ghost badge-sm">{{ cls.entity_kind || 'persistent_entity' }}</span>
+                      </td>
+                      <td class="whitespace-normal">
+                        <div class="member-list">
+                          @for (attr of cls.attributes; track attr.attribute_id) {
+                            <button class="member-badge badge badge-ghost badge-sm cursor-pointer" (click)="openEvidence(attr, 'attribute', cls)">
+                              {{ attr.attribute_name }} ({{ attr.data_type }})
+                            </button>
+                            <button class="member-delete" type="button" title="Delete attribute" aria-label="Delete attribute" (click)="deleteMember(cls, attr, 'attribute')">
+                              <svg aria-hidden="true" viewBox="0 0 12 12" focusable="false"><path d="M3 3l6 6M9 3L3 9"></path></svg>
+                            </button>
+                          }
+                          <button class="btn btn-xs btn-ghost text-primary" (click)="openMemberModal(cls, 'attribute')">+ Add</button>
+                        </div>
+                      </td>
+                      <td class="whitespace-normal">
+                        <div class="member-list">
+                          @for (method of cls.methods; track method.method_id) {
+                            <button class="member-badge badge badge-outline badge-sm cursor-pointer" (click)="openEvidence(method, 'method', cls)">
+                              {{ method.method_name }}
+                            </button>
+                            <button class="member-delete" type="button" title="Delete method" aria-label="Delete method" (click)="deleteMember(cls, method, 'method')">
+                              <svg aria-hidden="true" viewBox="0 0 12 12" focusable="false"><path d="M3 3l6 6M9 3L3 9"></path></svg>
+                            </button>
+                          }
+                          <button class="btn btn-xs btn-ghost text-primary" (click)="openMemberModal(cls, 'method')">+ Add</button>
+                        </div>
+                      </td>
+                      <td class="text-center">
+                        <div class="action-buttons">
+                          <button class="btn btn-xs btn-outline btn-primary" (click)="openClassModal(cls)">Edit</button>
+                          <button class="btn btn-xs btn-outline btn-error" (click)="deleteClass(cls)">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                  @if (umlModel.classes?.length === 0) {
+                    <tr>
+                      <td colspan="4" class="text-center text-muted">No classes extracted.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Relationships Table -->
+        <div class="card extracted-data-card">
+          <div class="card-body">
+            <div class="flex items-center justify-between border-b pb-2">
+              <h2 class="card-title text-2xl">Extracted Relationships</h2>
+              <button class="btn btn-sm btn-primary" (click)="openNewRelationshipModal()">Add</button>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+              <table class="extracted-data-table table table-zebra w-full">
+                <thead>
+                  <tr>
+                    <th class="w-1/4">Source</th>
+                    <th class="w-1/4">Type</th>
+                    <th class="w-1/4">Target</th>
+                    <th class="w-1/5">Multiplicity</th>
+                    <th class="w-24 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rel of umlModel.relationships; track rel) {
+                    <tr>
+                      <td class="font-semibold truncate">
+                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                          {{ rel.source_class?.class_name }}
+                        </button>
+                      </td>
+                      <td>
+                        <button class="badge badge-primary gap-2 cursor-pointer" (click)="openEvidence(rel, 'relationship')">
+                          {{ rel.relationship_label ? rel.relationship_label + ' (' + rel.relationship_type + ')' : rel.relationship_type }}
+                        </button>
+                      </td>
+                      <td class="font-semibold truncate">
+                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                          {{ rel.target_class?.class_name }}
+                        </button>
+                      </td>
+                      <td>
+                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                          {{ rel.multiplicity_source || '1' }} : {{ rel.multiplicity_target || '*' }}
+                        </button>
+                      </td>
+                      <td class="text-center">
+                        <div class="action-buttons">
+                          <button class="btn btn-xs btn-outline btn-primary" (click)="openRelationshipModal(rel)">Edit</button>
+                          <button class="btn btn-xs btn-outline btn-error" (click)="deleteRelationship(rel)">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                  @if (umlModel.relationships?.length === 0) {
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">No relationships extracted.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    }
+  </div>
+  <!-- CLASS EDITING MODAL -->
+<dialog id="edit_class_modal" class="modal">
+  @if (selectedClass) {
+    <div class="modal-box">
+      <h3 class="font-bold text-2xl text-primary mb-4">{{ isNewClass ? 'Add Class' : 'Edit Class' }}</h3>
+      
+      <div class="form-control w-full mb-4">
+        <label class="label"><span class="label-text font-semibold">Class Name</span></label>
+        <input type="text" [(ngModel)]="selectedClass.class_name" class="input input-bordered w-full" />
+      </div>
+
+      <div class="form-control w-full mb-6">
+        <label class="label"><span class="label-text font-semibold">Entity Classification</span></label>
+        <select [(ngModel)]="selectedClass.entity_kind" class="select select-bordered w-full">
+          <option value="persistent_entity">Persistent entity (ERD table)</option>
+          <option value="actor">Actor</option>
+          <option value="external_system">External system</option>
+          <option value="platform_context">Platform context</option>
+          <option value="service">Service</option>
+          <option value="reporting_concept">Reporting concept</option>
+        </select>
+        <label class="label"><span class="label-text-alt">Only persistent entities are rendered as ERD tables.</span></label>
+      </div>
+
+      @if (!isNewClass) {
+      <div class="form-control w-full mb-6">
+        <label class="label"><span class="label-text font-semibold">Attributes</span></label>
+        <div class="member-editor flex flex-wrap gap-2 p-3 rounded-lg">
+          @for (attr of selectedClass.attributes; track attr.attribute_id) {
+            <button class="badge badge-ghost cursor-pointer" (click)="openEvidence(attr, 'attribute', selectedClass)">
+              {{ attr.attribute_name }}
+            </button>
+          }
+          <button class="btn btn-xs btn-ghost text-primary" (click)="openMemberModal(selectedClass, 'attribute')">+ Add attribute</button>
+        </div>
+      </div>
+
+      <div class="form-control w-full mb-6">
+        <label class="label"><span class="label-text font-semibold">Methods</span></label>
+        <div class="member-editor flex flex-wrap gap-2 p-3 rounded-lg">
+          @for (method of selectedClass.methods; track method.method_id) {
+            <button class="badge badge-outline cursor-pointer" (click)="openEvidence(method, 'method', selectedClass)">
+              {{ method.method_name }}
+            </button>
+          }
+          <button class="btn btn-xs btn-ghost text-primary" (click)="openMemberModal(selectedClass, 'method')">+ Add method</button>
+        </div>
+      </div>
+      }
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" (click)="closeModal('edit_class_modal')" [disabled]="isSaving">Cancel</button>
+        <button class="btn btn-primary" (click)="saveClassChanges()" [disabled]="isSaving">
+          @if (isSaving) {
+            <span class="loading loading-spinner"></span>
+          }
+          {{ isNewClass ? 'Add Class' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  }
+</dialog>
+
+<!-- ATTRIBUTE AND METHOD EDITING MODAL -->
+<dialog id="edit_member_modal" class="modal">
+  @if (selectedMember) {
+    <div class="modal-box">
+      <h3 class="font-bold text-2xl text-primary mb-4">
+        {{ isNewMember ? 'Add' : 'Edit' }} {{ selectedMemberType === 'attribute' ? 'Attribute' : 'Method' }}
+      </h3>
+
+      @if (selectedMemberType === 'attribute') {
+        <div class="form-control w-full mb-4">
+          <label class="label"><span class="label-text font-semibold">Attribute Name</span></label>
+          <input type="text" [(ngModel)]="selectedMember.attribute_name" class="input input-bordered w-full" />
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-semibold">Data Type</span></label>
+            <input type="text" [(ngModel)]="selectedMember.data_type" class="input input-bordered w-full" />
+          </div>
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-semibold">Visibility</span></label>
+            <select [(ngModel)]="selectedMember.visibility" class="select select-bordered w-full">
+              <option value="public">public</option>
+              <option value="private">private</option>
+              <option value="protected">protected</option>
+            </select>
+          </div>
+        </div>
+      } @else {
+        <div class="form-control w-full mb-4">
+          <label class="label"><span class="label-text font-semibold">Method Name</span></label>
+          <input type="text" [(ngModel)]="selectedMember.method_name" class="input input-bordered w-full" />
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-semibold">Return Type</span></label>
+            <input type="text" [(ngModel)]="selectedMember.return_type" class="input input-bordered w-full" />
+          </div>
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-semibold">Visibility</span></label>
+            <select [(ngModel)]="selectedMember.visibility" class="select select-bordered w-full">
+              <option value="public">public</option>
+              <option value="private">private</option>
+              <option value="protected">protected</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" (click)="closeModal('edit_member_modal')" [disabled]="isSaving">Cancel</button>
+        <button class="btn btn-primary" (click)="saveMemberChanges()" [disabled]="isSaving">
+          @if (isSaving) {
+            <span class="loading loading-spinner"></span>
+          }
+          Save Changes
+        </button>
+      </div>
+    </div>
+  }
+</dialog>
+
+<!-- SOURCE EVIDENCE MODAL -->
+<dialog id="evidence_modal" class="modal">
+  @if (evidenceItem) {
+    <div class="modal-box evidence-modal-box">
+      <h3 class="font-bold text-2xl text-primary mb-2">Source Evidence</h3>
+      <p class="text-sm text-muted mb-4">
+        {{ evidenceType === 'class' ? evidenceItem.class_name : evidenceType === 'attribute' ? evidenceItem.attribute_name : evidenceType === 'method' ? displayMethodName(evidenceItem.method_name) : (evidenceItem.relationship_label ? evidenceItem.relationship_label + ' (' + evidenceItem.relationship_type + ')' : evidenceItem.relationship_type) }}
+      </p>
+      @if (evidenceItem.source_evidence) {
+        <blockquote class="evidence-quote">{{ evidenceItem.source_evidence }}</blockquote>
+      } @else {
+        <p class="evidence-empty">No supporting passage was recorded for this extracted item.</p>
+      }
+      <div class="modal-action">
+        <button class="btn btn-ghost" (click)="closeModal('evidence_modal')">Close</button>
+        <button class="btn btn-primary" (click)="editEvidenceItem()">Edit</button>
+      </div>
+    </div>
+  }
+</dialog>
+
+<!-- RELATIONSHIP EDITING MODAL -->
+<dialog id="edit_rel_modal" class="modal">
+  @if (selectedRelationship) {
+    <div class="modal-box relationship-modal-box">
+        <h3 class="font-bold text-2xl text-primary mb-4">{{ isNewRelationship ? 'Add Relationship' : 'Edit Relationship' }}</h3>
+      
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="form-control w-full">
+          <label class="label"><span class="label-text font-semibold">Source Class</span></label>
+            @if (isNewRelationship) {
+              <select [(ngModel)]="selectedRelationship.source_class_id" class="select select-bordered w-full">
+                <option [ngValue]="null" disabled>Select source</option>
+                @for (cls of umlModel.classes; track cls.class_id) {
+                  <option [ngValue]="cls.class_id">{{ cls.class_name }}</option>
+                }
+              </select>
+            } @else {
+              <input type="text" [value]="selectedRelationship.source_class?.class_name" class="input input-bordered w-full" disabled />
+            }
+          </div>
+          <div class="form-control w-full">
+            <label class="label"><span class="label-text font-semibold">Target Class</span></label>
+            @if (isNewRelationship) {
+              <select [(ngModel)]="selectedRelationship.target_class_id" class="select select-bordered w-full">
+                <option [ngValue]="null" disabled>Select target</option>
+                @for (cls of umlModel.classes; track cls.class_id) {
+                  <option [ngValue]="cls.class_id">{{ cls.class_name }}</option>
+                }
+              </select>
+            } @else {
+              <input type="text" [value]="selectedRelationship.target_class?.class_name" class="input input-bordered w-full" disabled />
+            }
+          </div>
+
+        </div>
+
+        <div class="form-control w-full mb-4">
+        <label class="label"><span class="label-text font-semibold">Relationship Type</span></label>
+        <select [(ngModel)]="selectedRelationship.relationship_type" class="select select-bordered w-full">
+          <option value="Association">Association</option>
+          <option value="Aggregation">Aggregation</option>
+          <option value="Composition">Composition</option>
+          <option value="Inheritance">Inheritance</option>
+        </select>
+        <label class="label"><span class="label-text font-semibold">Semantic wording</span></label>
+        <input type="text" [(ngModel)]="selectedRelationship.relationship_label" class="input input-bordered w-full" placeholder="e.g., applies to" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="form-control w-full">
+          <label class="label"><span class="label-text font-semibold">Source Multiplicity</span></label>
+          <input type="text" [(ngModel)]="selectedRelationship.multiplicity_source" class="input input-bordered w-full" placeholder="e.g., 1" />
+        </div>
+        <div class="form-control w-full">
+          <label class="label"><span class="label-text font-semibold">Target Multiplicity</span></label>
+          <input type="text" [(ngModel)]="selectedRelationship.multiplicity_target" class="input input-bordered w-full" placeholder="e.g., 0..*" />
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" (click)="closeModal('edit_rel_modal')" [disabled]="isSaving">Cancel</button>
+        <button class="btn btn-primary" (click)="saveRelationshipChanges()" [disabled]="isSaving">
+          @if (isSaving) {
+            <span class="loading loading-spinner"></span>
+          }
+          {{ isNewRelationship ? 'Add Relationship' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  }
+</dialog>
+</div>

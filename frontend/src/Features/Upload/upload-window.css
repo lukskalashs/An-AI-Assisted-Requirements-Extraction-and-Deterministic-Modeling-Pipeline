@@ -1,0 +1,72 @@
+:host {
+	display: block;
+}
+
+.upload-page {
+	background: transparent;
+	color: var(--system-text);
+}
+
+.upload-card {
+	background: var(--system-surface);
+	border: 1px solid var(--system-border);
+	box-shadow: none;
+}
+
+.upload-page .card-body,
+.upload-page .label-text-alt {
+	color: var(--system-text);
+}
+
+.upload-page .text-muted {
+	color: var(--system-muted);
+}
+
+.text-muted {
+	color: var(--system-muted);
+}
+
+.upload-alert,
+.pipeline-stats {
+	border: 1px solid var(--system-border);
+	box-shadow: none;
+}
+
+.pipeline-stats {
+	background: var(--system-surface-muted);
+}
+
+.selected-file {
+	background: var(--system-surface-muted);
+	border: 1px solid var(--system-border);
+	border-radius: 0.5rem;
+	color: var(--system-text);
+	margin-top: 0.75rem;
+	overflow-wrap: anywhere;
+	padding: 0.7rem 0.8rem;
+	text-align: left;
+}
+
+.selected-file-label {
+	color: var(--system-accent);
+	display: block;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	margin-bottom: 0.2rem;
+	text-transform: uppercase;
+}
+
+.selected-file strong {
+	color: #ffffff;
+	font-size: 0.9rem;
+}
+
+:host ::ng-deep .file-input {
+	color: var(--system-text);
+}
+
+:host ::ng-deep .file-input::file-selector-button {
+	background: var(--system-accent);
+	color: #ffffff;
+}

@@ -1,0 +1,155 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import 'tailwindcss';
+@plugin "daisyui";
+
+:root {
+	--system-bg: #0a0b0d;
+	--system-surface: #17191d;
+	--system-surface-muted: #24282e;
+	--system-border: #414750;
+	--system-text: #f7f7f7;
+	--system-muted: #b5bbc3;
+	--system-accent: #b53836;
+	--system-accent-dark: #852b2a;
+	--color-primary: var(--system-accent);
+	--color-primary-content: #ffffff;
+	--color-secondary: #4d5963;
+	--color-secondary-content: #ffffff;
+	--color-accent: var(--system-accent);
+	--color-accent-content: #ffffff;
+	--color-base-100: var(--system-surface);
+	--color-base-200: var(--system-surface-muted);
+	--color-base-300: var(--system-border);
+	--color-base-content: var(--system-text);
+}
+
+html,
+body {
+	background: linear-gradient(135deg, #050506 0%, var(--system-bg) 48%, #2b3036 100%);
+	background-attachment: fixed;
+	color: var(--system-text);
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+}
+
+.btn-primary,
+.btn-info,
+.btn-success,
+.badge-primary,
+.badge-info {
+	background: var(--system-accent);
+	border-color: var(--system-accent);
+	color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-info:hover,
+.btn-success:hover,
+.badge-primary:hover,
+.badge-info:hover {
+	background: var(--system-accent-dark);
+	border-color: var(--system-accent-dark);
+}
+
+.btn-outline.btn-primary,
+.btn-outline.btn-info {
+	background: transparent;
+	border-color: var(--system-accent);
+	color: var(--system-accent);
+}
+
+.btn-outline.btn-primary:hover,
+.btn-outline.btn-info:hover {
+	background: var(--system-accent);
+	color: #ffffff;
+}
+
+.btn-secondary,
+.btn-accent {
+	background: #4d5963;
+	border-color: #4d5963;
+	color: #ffffff;
+}
+
+.btn-secondary:hover,
+.btn-accent:hover {
+	background: #333d46;
+	border-color: #333d46;
+}
+
+.input-primary,
+.file-input-primary {
+	border-color: var(--system-accent);
+}
+
+.progress-primary {
+	color: var(--system-accent);
+}
+
+.text-primary {
+	color: var(--system-accent);
+}
+
+.text-info {
+	color: var(--system-accent);
+}
+
+.text-muted,
+.text-gray-500,
+.text-base-content\/70,
+.text-base-content\/80 {
+	color: var(--system-muted);
+}
+
+.bg-white,
+.bg-base-100 {
+	background: var(--system-surface);
+	color: var(--system-text);
+}
+
+.bg-base-200 {
+	background: var(--system-surface-muted);
+	color: var(--system-text);
+}
+
+.border-base-300,
+.border-gray-200 {
+	border-color: var(--system-border);
+}
+
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl {
+	box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.12);
+}
+
+.file-input {
+	background: var(--system-surface-muted);
+	color: var(--system-text);
+}
+
+.file-input::file-selector-button {
+	background: var(--system-accent);
+	border: 0;
+	color: #ffffff;
+}
+
+.file-input::file-selector-button:hover {
+	background: var(--system-accent-dark);
+}
+
+.member-editor {
+	background: var(--system-surface-muted);
+	border: 1px solid var(--system-border);
+}
+
+.modal-box {
+	background: var(--system-surface);
+	color: var(--system-text);
+}
