@@ -58,8 +58,8 @@ If you wish to run the FastAPI server and test the Swagger UI locally:
 
 ## Hosting
 
-The deployment configuration uses Render for the FastAPI API and GitHub Pages
-for the Angular frontend.
+The frontend and FastAPI API are hosted on Render. The Angular frontend is
+deployed as a Render Static Site; GitHub Pages is not used.
 
 ### Backend (Render)
 
@@ -75,18 +75,14 @@ for the Angular frontend.
    web-service filesystem is ephemeral, so local SQLite data can be lost when
    the service restarts or redeploys.
 
-### Frontend (GitHub Pages)
+### Frontend (Render Static Site)
 
-1. In the GitHub repository, add the Actions variable `API_BASE_URL` with the
-   public HTTPS URL of the deployed Render service (for example,
-   `https://ai-assisted-uml-api.onrender.com`).
-2. Under **Settings → Pages**, set the build and deployment source to **GitHub
-   Actions**.
-3. Push to `main` or manually run **Deploy Angular frontend to GitHub Pages**
-   from the Actions tab. The workflow builds Angular with the repository
-   subpath and deploys the static site.
+Configure the Render Static Site with root directory `frontend`, build command
+`npm ci && npm run build -- --base-href /`, and publish directory
+`dist/frontend/browser`. Set its `API_BASE_URL` build-time variable to the
+public HTTPS URL of the deployed Render API (for example,
+`https://ai-assisted-uml-api.onrender.com`).
 
-The Render CORS configuration in `render.yaml` allows the GitHub Pages origin
-for this repository. For a different repository or custom frontend domain,
-update `CORS_ORIGINS` in `render.yaml` to that site's origin (scheme and host,
-without a path).
+The backend's `CORS_ORIGINS` in `render.yaml` must match the frontend's public
+origin (scheme and host, without a path or trailing slash). A push to the
+tracked branch triggers Render to deploy updated services.

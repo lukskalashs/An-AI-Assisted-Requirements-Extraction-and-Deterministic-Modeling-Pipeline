@@ -15,4 +15,4 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: https://lukskalashs.github.io
+        value: https://an-ai-assisted-requirements-extraction.onrender.com

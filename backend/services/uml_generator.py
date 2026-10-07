@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from models.database import UMLModel, GeneratedDiagram
-from services.relationship_normalizer import canonicalize_relationship
+from services.relationship_normalizer import canonicalize_relationship, inheritance_child_parent
 
 def generate_plantuml_syntax(db: Session, model_id:int) -> str:
     """
@@ -112,7 +112,12 @@ def generate_plantuml_syntax(db: Session, model_id:int) -> str:
             tgt_mult = ""
 
         if rel_type == "inheritance":
-            line = f"{canonical_target} {arrow} {canonical_source}"
+            child_name, parent_name = inheritance_child_parent(
+                rel.source_class.class_name,
+                rel.target_class.class_name,
+                rel.source_evidence,
+            )
+            line = f"{parent_name} {arrow} {child_name}"
         else:
             line = f"{canonical_source} {src_mult} {arrow} {tgt_mult} {canonical_target}"
         

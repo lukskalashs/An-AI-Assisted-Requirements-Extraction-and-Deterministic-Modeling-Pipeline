@@ -2,7 +2,7 @@ import os
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.orm import Session
 from models.database import UMLClass, UMLAttribute, UMLRelationship
-from services.relationship_normalizer import canonicalize_relationship
+from services.relationship_normalizer import canonicalize_relationship, inheritance_child_parent
 
 # Set up the Jinja2 Environment to look in the templates folder
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
@@ -45,13 +45,30 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
 
     for cls in classes:
         safe_class_name = cls.class_name.replace(" ", "")
-        inheritance_targets = [
-            class_by_id.get(rel.target_class_id)
-            for rel in relationships
-            if (rel.relationship_type or "").lower() == "inheritance"
-            and rel.source_class_id == cls.class_id
-        ]
-        inheritance_targets = [target for target in inheritance_targets if target]
+        inheritance_targets = []
+        for rel in relationships:
+            if (rel.relationship_type or "").lower() != "inheritance":
+                continue
+            source_cls = class_by_id.get(rel.source_class_id)
+            target_cls = class_by_id.get(rel.target_class_id)
+            if not source_cls or not target_cls:
+                continue
+            child_name, parent_name = inheritance_child_parent(
+                source_cls.class_name,
+                target_cls.class_name,
+                rel.source_evidence,
+            )
+            if child_name.replace(" ", "").lower() == safe_class_name.lower():
+                parent = next(
+                    (
+                        item for item in classes
+                        if item.class_name.replace(" ", "").lower()
+                        == parent_name.replace(" ", "").lower()
+                    ),
+                    None,
+                )
+                if parent and parent not in inheritance_targets:
+                    inheritance_targets.append(parent)
         if len(inheritance_targets) > 1:
             raise ValueError(
                 f"C# supports single inheritance, but {safe_class_name} has "

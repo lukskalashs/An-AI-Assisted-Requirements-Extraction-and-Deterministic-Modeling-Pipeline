@@ -54,19 +54,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
-        if origin.strip()
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 def evidence_for(raw_text: str, subject: str, supplied: str | None = None) -> str | None:
     """Return source-backed evidence, with a deterministic sentence fallback."""
     normalised_text = re.sub(r"\s+", " ", raw_text or "").strip().lower()
@@ -691,7 +678,13 @@ def export_csharp_code(model_id: int, db: Session = Depends(get_db)):
     if not db_model:
         raise HTTPException(status_code=404, detail="Model not found!")
     
-    generated_classes = generate_csharp_classes(db, model_id)
+    try:
+        generated_classes = generate_csharp_classes(db, model_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot generate C# classes: {exc}",
+        ) from exc
     
     if not generated_classes:
         raise HTTPException(status_code=400, detail="Could not generate code. Ensure the model has extracted classes.")
@@ -719,6 +712,19 @@ def export_openapi_contract(model_id: int, db: Session = Depends(get_db)):
     
     # We return it as a raw text response so the browser/frontend can save it as a .yaml file easily
     return Response(content=yaml_string, media_type="text/yaml")
+
+
+app = CORSMiddleware(
+    app=app,
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
+        if origin.strip()
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 if __name__ == "__main__":

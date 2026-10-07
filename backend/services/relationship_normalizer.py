@@ -1,10 +1,26 @@
 from __future__ import annotations
 
+import re
+
 
 _SPECIAL_CARDINALITIES = {
     frozenset({"cartitem", "product"}): ("Product", "CartItem", "1", "0..*"),
     frozenset({"orderitem", "product"}): ("Product", "OrderItem", "1", "0..*"),
 }
+
+
+def inheritance_child_parent(
+    source_name: str, target_name: str, source_evidence: str | None = None
+) -> tuple[str, str]:
+    """Return inheritance endpoints as child and parent, correcting explicit base-class evidence."""
+    evidence = (source_evidence or "").lower()
+    target_pattern = rf"\b{re.escape(target_name.lower())}\b.*\b(?:extend|extends|inherit|inherits)\b"
+    if (
+        ("base class" in evidence or "parent class" in evidence)
+        and re.search(target_pattern, evidence)
+    ):
+        return target_name, source_name
+    return source_name, target_name
 
 
 def canonicalize_relationship(

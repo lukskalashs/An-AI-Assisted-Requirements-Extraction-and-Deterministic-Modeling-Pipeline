@@ -149,18 +149,24 @@ export class ArtifactViewerComponent implements OnInit, OnDestroy {
   // Dowload C# Code as .cs files
 
   downloadCSharp(): void {
-    this.apiService.exportCSharpCode(this.modelId).subscribe(res => {
-      //Combine all generated C# classes into a single file for easy download
+    this.apiService.exportCSharpCode(this.modelId).subscribe({
+      next: (res) => {
+        //Combine all generated C# classes into a single file for easy download
 
-      let combinedCode = "";
+        let combinedCode = "";
 
-      for (const className in res.classes){
-        combinedCode += res.classes[className] + "\n\n";
-      }
+        for (const className in res.classes) {
+          combinedCode += res.classes[className] + "\n\n";
+        }
 
-      const fileBlob = new Blob([combinedCode], {type: 'text/plain'});
-      this.triggerDownload(fileBlob, `DomainModels_Models${this.modelId}.cs`)
-    })
+        const fileBlob = new Blob([combinedCode], { type: 'text/plain' });
+        this.triggerDownload(fileBlob, `DomainModels_Models${this.modelId}.cs`);
+      },
+      error: (err) => {
+        console.error('C# export API error:', err);
+        this.errorMessage = err.error?.detail || 'Could not generate the C# classes. Check the backend logs.';
+      },
+    });
   }
 
 
