@@ -2,6 +2,15 @@ from sqlalchemy.orm import Session
 from models.database import UMLModel, GeneratedDiagram
 from services.relationship_normalizer import canonicalize_relationship, inheritance_child_parent
 
+
+def _class_key(name: str) -> str:
+    return name.replace(" ", "").lower()
+
+
+def _plantuml_label(name: str) -> str:
+    return name.replace("\\", "\\\\").replace('"', '\\"').replace("\r", " ").replace("\n", " ")
+
+
 def generate_plantuml_syntax(db: Session, model_id:int) -> str:
     """
     Compiles a UML model from the nrelational database
@@ -23,13 +32,20 @@ def generate_plantuml_syntax(db: Session, model_id:int) -> str:
 
     #Compilation of Classes, attributes and methods.....
 
+    class_aliases = {
+        _class_key(cls.class_name): f"UmlClass{cls.class_id}"
+        for cls in model.classes
+    }
+
     for cls in model.classes:
+        alias = class_aliases[_class_key(cls.class_name)]
+        label = _plantuml_label(cls.class_name)
         #check if abstract
         if cls.is_abstract:
-            class_decl = f"abstract class {cls.class_name}"
+            class_decl = f'abstract class "{label}" as {alias}'
             puml_lines.append(class_decl + " {")
         else:
-            class_decl = f"class {cls.class_name}"
+            class_decl = f'class "{label}" as {alias}'
             puml_lines.append(class_decl + " {")
 
         reverse_foreign_key_names = set()
@@ -117,9 +133,23 @@ def generate_plantuml_syntax(db: Session, model_id:int) -> str:
                 rel.target_class.class_name,
                 rel.source_evidence,
             )
-            line = f"{parent_name} {arrow} {child_name}"
+            source_alias = class_aliases.get(_class_key(parent_name))
+            target_alias = class_aliases.get(_class_key(child_name))
         else:
-            line = f"{canonical_source} {src_mult} {arrow} {tgt_mult} {canonical_target}"
+            source_alias = class_aliases.get(_class_key(canonical_source))
+            target_alias = class_aliases.get(_class_key(canonical_target))
+
+        if not source_alias or not target_alias:
+            raise ValueError(
+                "Cannot generate UML relationship because an endpoint does not "
+                f"match a class in model {model_id}: "
+                f"{canonical_source!r}, {canonical_target!r}"
+            )
+
+        if rel_type == "inheritance":
+            line = f"{source_alias} {arrow} {target_alias}"
+        else:
+            line = f'{source_alias} {src_mult} {arrow} {tgt_mult} {target_alias}'
         
         puml_lines.append(line)
 
