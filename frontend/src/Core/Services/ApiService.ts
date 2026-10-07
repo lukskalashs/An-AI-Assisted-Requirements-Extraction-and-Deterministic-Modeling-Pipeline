@@ -9,6 +9,10 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+  createProject(projectData: { project_name: string; description?: string }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/projects/`, projectData);
+  }
+
   uploadDocument(projectId: number, file: File): Observable<any> {
     const formData = new FormData();
     formData.append('file', file);

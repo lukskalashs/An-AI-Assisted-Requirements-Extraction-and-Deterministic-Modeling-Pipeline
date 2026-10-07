@@ -30,7 +30,7 @@ class ProjectBase(BaseModel):
 
 # Schema for creating a new project (what the frontend sends)
 class ProjectCreate(ProjectBase):
-    user_id: int
+    user_id: Optional[int] = None
 
 # Schema for reading a project (what the API returns)
 class ProjectResponse(ProjectBase):

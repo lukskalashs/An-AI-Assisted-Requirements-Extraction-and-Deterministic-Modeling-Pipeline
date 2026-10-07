@@ -16,7 +16,6 @@ export class UploadWindowComponent {
   isProcessing: boolean = false;
   pipelineStats: any = null;
   hasPipelineStats: boolean = false;
-  projectId: number = 1; // Defaulting to 1 for prototyping purposes
 
   constructor(
     private api: ApiService,
@@ -39,30 +38,37 @@ export class UploadWindowComponent {
   }
 
   processDocument() {
-    if (!this.selectedFile) return;
+    const file = this.selectedFile;
+    if (!file) return;
     this.isProcessing = true;
     this.pipelineStats = null;
     this.hasPipelineStats = false;
     
-    // 1. Upload the file to the backend
-    this.api.uploadDocument(this.projectId, this.selectedFile).subscribe({
-      next: (docRes: any) => {
-        // NLP chunking finishes during upload, so show its real metrics immediately.
-        this.pipelineStats = docRes.nlp_pipeline;
-        this.hasPipelineStats = !!this.pipelineStats;
-        this.changeDetector.detectChanges();
-        
-        // 2. Trigger the LLM Extraction Pipeline
-        this.api.extractModel(docRes.document_id).subscribe({
-          next: (extractRes: any) => {
-            this.isProcessing = false;
-            if (extractRes.nlp_pipeline?.sentence_count !== undefined) {
-              this.pipelineStats = extractRes.nlp_pipeline;
-              this.hasPipelineStats = true;
-            }
+    this.api.createProject({
+      project_name: file.name,
+      description: 'Automatically created from an uploaded SRS document.',
+    }).subscribe({
+      next: (projectRes: any) => {
+        this.api.uploadDocument(projectRes.project_id, file).subscribe({
+          next: (docRes: any) => {
+            // NLP chunking finishes during upload, so show its real metrics immediately.
+            this.pipelineStats = docRes.nlp_pipeline;
+            this.hasPipelineStats = !!this.pipelineStats;
             this.changeDetector.detectChanges();
 
-            this.router.navigate(['/hitl-dashboard', extractRes.model_id]);
+            this.api.extractModel(docRes.document_id).subscribe({
+              next: (extractRes: any) => {
+                this.isProcessing = false;
+                if (extractRes.nlp_pipeline?.sentence_count !== undefined) {
+                  this.pipelineStats = extractRes.nlp_pipeline;
+                  this.hasPipelineStats = true;
+                }
+                this.changeDetector.detectChanges();
+
+                this.router.navigate(['/hitl-dashboard', extractRes.model_id]);
+              },
+              error: (err: any) => this.handleError(err)
+            });
           },
           error: (err: any) => this.handleError(err)
         });
@@ -73,7 +79,7 @@ export class UploadWindowComponent {
 
   handleError(error: any) {
     this.isProcessing = false;
-    this.errorMessage = 'An error occurred during communication with the AI pipeline. Please ensure the backend is running.';
+    this.errorMessage = error.error?.detail || 'An error occurred during communication with the AI pipeline. Please try again.';
     console.error(error);
   }
 }
