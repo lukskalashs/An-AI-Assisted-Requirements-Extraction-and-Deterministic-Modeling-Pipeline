@@ -18,6 +18,7 @@ from services.yaml_generator import generate_openapi_yaml
 from services.relationship_normalizer import canonicalize_relationship
 from fastapi import Response 
 import re
+import os
 # from generators.erd_generator import generate_sql_ddl
 
 
@@ -55,7 +56,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"], 
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
+        if origin.strip()
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

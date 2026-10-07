@@ -49,6 +49,7 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
         # 1. Prepare Attributes
         properties = []
         initializers = [] # Now this will hold dictionaries
+        seen_property_names = {f"{safe_class_name}Id".lower()}
         foreign_key_names = set()
         reverse_foreign_key_names = set()
         for rel in relationships:
@@ -83,6 +84,9 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
             
             # Capitalize property names for C# conventions
             pascal_name = attr_name[0].upper() + attr_name[1:] if attr_name else "Unknown"
+            if pascal_name.lower() in seen_property_names:
+                continue
+            seen_property_names.add(pascal_name.lower())
             properties.append({"type": cs_type, "name": pascal_name})
             
             # Append a dictionary containing both name and type

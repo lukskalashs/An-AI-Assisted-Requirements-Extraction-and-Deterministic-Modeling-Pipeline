@@ -1,33 +1,26 @@
+import os
+
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
 
-# 1. Create the database URL
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+        "postgres://", "postgresql+psycopg://", 1
+    )
+elif SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+        "postgresql://", "postgresql+psycopg://", 1
+    )
 
-# 2. Create the SQLAlchemy engine
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+engine_options = {}
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite:"):
+    engine_options["connect_args"] = {"check_same_thread": False}
 
-# 3. Create a SessionLocal class (This is what main.py is looking for!)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 4. Base class for your models
-Base = declarative_base()
-
-# ... (Keep your User, Project, UMLModel classes down here) ...
-
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-
-session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-
+session_local = SessionLocal
 Base = declarative_base()
 
 class User(Base):

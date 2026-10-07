@@ -50,5 +50,43 @@ If you wish to run the FastAPI server and test the Swagger UI locally:
 
 1. **Install Dependencies:**
    ```bash
-   pip install fastapi uvicorn sqlalchemy pydantic openai spacy PyPDF2 python-dotenv
+   cd backend
+   pip install -r requirements.txt
    python -m spacy download en_core_web_sm
+   uvicorn main:app --reload
+   ```
+
+## Hosting
+
+The deployment configuration uses Render for the FastAPI API and GitHub Pages
+for the Angular frontend.
+
+### Backend (Render)
+
+1. Push this repository to GitHub, then create a Render Blueprint from the
+   repository. Render reads [render.yaml](./render.yaml), which installs the
+   dependencies in `backend/requirements.txt`, downloads the spaCy English
+   model, and starts Uvicorn on Render's assigned port.
+2. Set `OPENAI_API_KEY` in the Render service environment. The extraction
+   feature calls OpenAI and requires a valid API key; API usage may incur
+   charges.
+3. Set `DATABASE_URL` to a PostgreSQL connection URL for persistent storage.
+   The app still defaults to local SQLite for development, but Render's free
+   web-service filesystem is ephemeral, so local SQLite data can be lost when
+   the service restarts or redeploys.
+
+### Frontend (GitHub Pages)
+
+1. In the GitHub repository, add the Actions variable `API_BASE_URL` with the
+   public HTTPS URL of the deployed Render service (for example,
+   `https://ai-assisted-uml-api.onrender.com`).
+2. Under **Settings → Pages**, set the build and deployment source to **GitHub
+   Actions**.
+3. Push to `main` or manually run **Deploy Angular frontend to GitHub Pages**
+   from the Actions tab. The workflow builds Angular with the repository
+   subpath and deploys the static site.
+
+The Render CORS configuration in `render.yaml` allows the GitHub Pages origin
+for this repository. For a different repository or custom frontend domain,
+update `CORS_ORIGINS` in `render.yaml` to that site's origin (scheme and host,
+without a path).

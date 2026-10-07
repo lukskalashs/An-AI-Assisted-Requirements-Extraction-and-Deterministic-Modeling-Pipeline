@@ -66,7 +66,10 @@ def generate_plantuml_syntax(db: Session, model_id:int) -> str:
                 vis = "-"
             else:
                 vis = "#" 
-            puml_lines.append(f"    {vis}{method.method_name}() : {method.return_type}")
+            method_name = method.method_name.strip()
+            if method_name.endswith("()"):
+                method_name = method_name[:-2].rstrip()
+            puml_lines.append(f"    {vis}{method_name}() : {method.return_type}")
         
         puml_lines.append("}")
         puml_lines.append("")

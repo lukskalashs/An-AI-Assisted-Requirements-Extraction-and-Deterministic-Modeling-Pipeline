@@ -1,9 +1,11 @@
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
+psycopg[binary]
 pydantic
-pydantic-settings
+jinja2
 spacy
 openai
-google-generativeai
 python-multipart
+PyPDF2
+python-dotenv
