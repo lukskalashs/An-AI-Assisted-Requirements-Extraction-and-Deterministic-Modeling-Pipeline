@@ -45,6 +45,23 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
 
     for cls in classes:
         safe_class_name = cls.class_name.replace(" ", "")
+        inheritance_targets = [
+            class_by_id.get(rel.target_class_id)
+            for rel in relationships
+            if (rel.relationship_type or "").lower() == "inheritance"
+            and rel.source_class_id == cls.class_id
+        ]
+        inheritance_targets = [target for target in inheritance_targets if target]
+        if len(inheritance_targets) > 1:
+            raise ValueError(
+                f"C# supports single inheritance, but {safe_class_name} has "
+                f"multiple base classes: {', '.join(item.class_name for item in inheritance_targets)}"
+            )
+        base_class = (
+            inheritance_targets[0].class_name.replace(" ", "")
+            if inheritance_targets
+            else None
+        )
         
         # 1. Prepare Attributes
         properties = []
@@ -53,6 +70,8 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
         foreign_key_names = set()
         reverse_foreign_key_names = set()
         for rel in relationships:
+            if (rel.relationship_type or "").lower() == "inheritance":
+                continue
             source_cls = class_by_id.get(rel.source_class_id)
             target_cls = class_by_id.get(rel.target_class_id)
             if not source_cls or not target_cls:
@@ -95,7 +114,10 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
 
         # 2. Prepare Navigation Properties (Relationships)
         navigation_properties = []
+        seen_navigation_names = set()
         for rel in relationships:
+            if (rel.relationship_type or "").lower() == "inheritance":
+                continue
             source_cls = class_by_id.get(rel.source_class_id)
             target_cls = class_by_id.get(rel.target_class_id)
             if not source_cls or not target_cls:
@@ -114,15 +136,36 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
                 tgt_name = canonical_target.replace(" ", "")
 
                 if "*" in (canonical_target_mult or ""):
-                    navigation_properties.append({"type": f"List<{tgt_name}>", "name": f"{tgt_name}s"})
-                    initializers.append({"name": f"{tgt_name}s", "type": f"List<{tgt_name}>"})
+                    nav_name = f"{tgt_name}s"
+                    nav_type = f"List<{tgt_name}>"
                 else:
-                    navigation_properties.append({"type": tgt_name, "name": tgt_name})
+                    nav_name = tgt_name
+                    nav_type = tgt_name
+                if nav_name.lower() not in seen_navigation_names:
+                    seen_navigation_names.add(nav_name.lower())
+                    navigation_properties.append({"type": nav_type, "name": nav_name})
+                    if nav_type.startswith("List"):
+                        initializers.append({"name": nav_name, "type": nav_type})
+
+        # Keep relationship navigation properties when extracted attributes collide.
+        properties = [
+            prop for prop in properties
+            if prop["name"].lower() not in seen_navigation_names
+        ]
+        initializers = [
+            init for init in initializers
+            if init["name"].lower() not in seen_navigation_names
+        ] + [
+            {"name": nav["name"], "type": nav["type"]}
+            for nav in navigation_properties
+            if nav["type"].startswith("List")
+        ]
 
         # 3. Render the Template
         
         class_code = template.render(
             class_name=safe_class_name,
+            base_class=base_class,
             properties=properties,
             navigation_properties=navigation_properties,
             initializers=initializers

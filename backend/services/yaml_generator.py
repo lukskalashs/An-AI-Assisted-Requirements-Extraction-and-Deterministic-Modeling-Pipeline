@@ -30,6 +30,16 @@ def is_monetary_attribute(attribute_name: str) -> bool:
     monetary_names = {"price", "subtotal", "tax", "total", "amount", "unitprice"}
     return attribute_name.lower().replace("_", "") in monetary_names
 
+
+def pluralize_resource_name(name: str) -> str:
+    """Pluralize a lower-case resource name for generated OpenAPI paths."""
+    if len(name) > 1 and name.endswith("y") and name[-2] not in "aeiou":
+        return f"{name[:-1]}ies"
+    if name.endswith(("s", "x", "z", "ch", "sh")):
+        return f"{name}es"
+    return f"{name}s"
+
+
 def generate_openapi_yaml(db: Session, model_id: int) -> str:
     """
     Generates a semantically routed OpenAPI 3.0 YAML specification.
@@ -109,6 +119,7 @@ def generate_openapi_yaml(db: Session, model_id: int) -> str:
 
         classes_data.append({
             "name": safe_class_name,
+            "plural_name": pluralize_resource_name(safe_class_name.lower()),
             "pk_name": pk_name,
             "attributes": attributes_data
         })
@@ -144,7 +155,7 @@ def generate_openapi_yaml(db: Session, model_id: int) -> str:
                 if set([src_name.lower(), tgt_name.lower()]) == set(["jobseeker", "jobposting"]):
                     nested_routes.append({
                         "parent": src_name,
-                        "parent_path": f"{src_name.lower()}s",
+                        "parent_path": pluralize_resource_name(src_name.lower()),
                         "child": "Application",
                         "child_path": "applications",
                         "is_junction": True
@@ -154,9 +165,9 @@ def generate_openapi_yaml(db: Session, model_id: int) -> str:
                 if "*" in tgt_mult:
                      nested_routes.append({
                         "parent": src_name,
-                        "parent_path": f"{src_name.lower()}s",
+                        "parent_path": pluralize_resource_name(src_name.lower()),
                         "child": tgt_name,
-                        "child_path": f"{tgt_name.lower()}s",
+                        "child_path": pluralize_resource_name(tgt_name.lower()),
                         "is_junction": False
                     })
 

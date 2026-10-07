@@ -7,7 +7,7 @@ namespace GeneratedDomainModels
     /// Auto-generated class for {{ class_name }}.
     /// Extracted via AI-Assisted Requirements Pipeline.
     /// </summary>
-    public class {{ class_name }}
+    public class {{ class_name }}{% if base_class %} : {{ base_class }}{% endif %}
     {
         // Primary Key
         public int {{ class_name }}Id { get; set; }
