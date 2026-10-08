@@ -1,4 +1,5 @@
 import os
+import re
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.orm import Session
 from models.database import UMLClass, UMLAttribute, UMLRelationship
@@ -19,10 +20,10 @@ def map_to_csharp_type(raw_type: str) -> str:
     if t in ["date", "datetime"]: return "DateTime"
 
     # Handle generic Lists/Maps from the AI
-    if "list<" in raw_type:
-        inner_type = map_to_csharp_type(raw_type.replace("List<", "").replace(">", "").strip())
+    if t.startswith("list<") and raw_type.endswith(">"):
+        inner_type = map_to_csharp_type(raw_type[raw_type.index("<") + 1:-1].strip())
         return f"List<{inner_type}>"
-    if "map<" in raw_type:
+    if t.startswith("map<") or t.startswith("dictionary<"):
         return "Dictionary<string, string>" # Simplified fallback for generic maps
         
     return "string" # Fallback
@@ -129,6 +130,27 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
             if cs_type.startswith("List") or cs_type.startswith("Dictionary"):
                 initializers.append({"name": pascal_name, "type": cs_type})
 
+        methods = []
+        for method in cls.methods:
+            method_name = re.sub(r"\s*\([^)]*\)\s*$", "", method.method_name or "").replace(" ", "")
+            if not method_name:
+                continue
+            method_name = re.sub(r"\W", "", method_name)
+            if not method_name:
+                continue
+            if method_name[0].isdigit():
+                method_name = f"_{method_name}"
+            raw_return_type = (method.return_type or "").strip()
+            methods.append({
+                "visibility": method.visibility
+                if method.visibility in {"public", "private", "protected", "internal"}
+                else "public",
+                "return_type": "void"
+                if not raw_return_type or raw_return_type.lower() == "void"
+                else map_to_csharp_type(raw_return_type),
+                "name": method_name[0].upper() + method_name[1:],
+            })
+
         # 2. Prepare Navigation Properties (Relationships)
         navigation_properties = []
         seen_navigation_names = set()
@@ -185,7 +207,8 @@ def generate_csharp_classes(db: Session, model_id: int) -> dict:
             base_class=base_class,
             properties=properties,
             navigation_properties=navigation_properties,
-            initializers=initializers
+            initializers=initializers,
+            methods=methods,
         )
         
         generated_code[safe_class_name] = class_code

@@ -22,8 +22,18 @@ namespace GeneratedDomainModels
         public {{ nav.type }} {{ nav.name }} { get; set; }
 {% endfor %}
 
-        // Constructor
-        public {{ class_name }}()
+// Methods
+{% for method in methods %}
+{{ method.visibility }} {{ method.return_type }} {{ method.name }}()
+{
+{% if method.return_type != "void" %}
+    return default;
+{% endif %}
+}
+{% endfor %}
+
+// Constructor
+public {{ class_name }}()
         {
 {% for init in initializers %}
             {{ init.name }} = new {{ init.type }}();

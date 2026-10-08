@@ -2,7 +2,6 @@ import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../Core/Services/ApiService'; 
-import { finalize } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -15,7 +14,8 @@ import { FormsModule } from '@angular/forms';
 export class HitlDashboardComponent implements OnInit {
   modelId!: number;
   umlModel: any = null;
-  isLoading: boolean = true;
+  pipelineStats: { sanitised: boolean; sentence_count: number; chunk_count: number; overlap_words: number } | null = null;
+  isGenerating: boolean = false;
   errorMessage: string = '';
 
   //Editing State
@@ -30,6 +30,13 @@ export class HitlDashboardComponent implements OnInit {
   evidenceItem: any = null;
   evidenceClass: any = null;
   evidenceType: 'class' | 'attribute' | 'method' | 'relationship' = 'class';
+  evidenceLoading = false;
+  evidenceError = '';
+  evidenceDocument: any = null;
+  evidenceBefore = '';
+  evidenceMatch = '';
+  evidenceAfter = '';
+  private sourceDocuments: any[] | null = null;
   isSaving: boolean = false;
 
   constructor(
@@ -43,7 +50,6 @@ export class HitlDashboardComponent implements OnInit {
     const idParam = this.route.snapshot.paramMap.get('modelId');
     if (!idParam || Number.isNaN(Number(idParam))) {
       this.errorMessage = 'No valid model ID was provided.';
-      this.isLoading = false;
       return;
     }
 
@@ -52,16 +58,11 @@ export class HitlDashboardComponent implements OnInit {
   }
 
   fetchModelData() {
-    this.isLoading = true;
     this.errorMessage = '';
 
-    this.api.getUmlModel(this.modelId).pipe(
-      finalize(() => {
-        this.isLoading = false;
-        this.changeDetector.detectChanges();
-      })
-    ).subscribe({
+    this.api.getUmlModel(this.modelId).subscribe({
       next: (data) => {
+        this.pipelineStats = data.nlp_pipeline || null;
         this.umlModel = {
           ...data,
           classes: (data.classes || []).map((umlClass: any) => ({
@@ -87,27 +88,30 @@ export class HitlDashboardComponent implements OnInit {
               : (relationship.multiplicity_target || '0..*')
           })))
         };
+        this.changeDetector.detectChanges();
       },
       error: (err) => {
         this.errorMessage = `Failed to load extracted entities (${err.status || 'network error'}).`;
         console.error(err);
+        this.changeDetector.detectChanges();
       }
     });
   }
 
   confirmAndGenerate() {
-    this.isLoading = true;
+    this.isGenerating = true;
     
     // FIX: Trigger the deterministic UML generation (UC-11)
     this.api.generateDiagram(this.modelId).subscribe({
       next: () => {
-        this.isLoading = false;
+        this.isGenerating = false;
+        this.setDiagramGenerated(true);
         // Navigate to the final rendered diagram
         this.router.navigate(['/artifacts', this.modelId]);
       },
       error: (err) => {
         this.errorMessage = 'Failed to generate architecture.';
-        this.isLoading = false;
+        this.isGenerating = false;
         console.error(err);
       }
     });
@@ -155,6 +159,7 @@ export class HitlDashboardComponent implements OnInit {
     request.subscribe({
       next: (savedClass) => {
         if (this.isNewClass) {
+          this.setDiagramGenerated(false);
           this.umlModel.classes.push({
             ...savedClass,
             attributes: [],
@@ -188,6 +193,7 @@ export class HitlDashboardComponent implements OnInit {
           }));
         }
 
+        this.setDiagramGenerated(false);
         this.isSaving = false;
         this.errorMessage = '';
         this.changeDetector.detectChanges();
@@ -229,8 +235,50 @@ export class HitlDashboardComponent implements OnInit {
     this.evidenceItem = item;
     this.evidenceType = type;
     this.evidenceClass = cls || null;
+    this.evidenceLoading = true;
+    this.evidenceError = '';
+    this.evidenceDocument = null;
+    this.evidenceBefore = '';
+    this.evidenceMatch = '';
+    this.evidenceAfter = '';
     const modal = document.getElementById('evidence_modal') as HTMLDialogElement;
     modal?.showModal();
+    const showEvidence = (documents: any[]) => {
+      this.sourceDocuments = documents;
+      const evidence = item.source_evidence || '';
+      const expression = evidence.trim()
+        ? new RegExp(evidence.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').split(/\s+/).join('\\s+'), 'i')
+        : null;
+      const matchedDocument = expression
+        ? documents.find(source => expression.exec(source.raw_text || '') !== null)
+        : null;
+      this.evidenceLoading = false;
+      if (matchedDocument && expression) {
+        const match = expression.exec(matchedDocument.raw_text || '');
+        if (match && match.index !== undefined) {
+          this.evidenceDocument = matchedDocument;
+          const text = matchedDocument.raw_text || '';
+          const excerptStart = Math.max(0, match.index - 350);
+          const excerptEnd = Math.min(text.length, match.index + match[0].length + 350);
+          this.evidenceBefore = `${excerptStart ? '…' : ''}${text.slice(excerptStart, match.index)}`;
+          this.evidenceMatch = match[0];
+          this.evidenceAfter = `${text.slice(match.index + match[0].length, excerptEnd)}${excerptEnd < text.length ? '…' : ''}`;
+        }
+      }
+      this.changeDetector.detectChanges();
+    };
+    if (this.sourceDocuments) {
+      showEvidence(this.sourceDocuments);
+    } else {
+      this.api.getModelSourceDocuments(this.modelId).subscribe({
+        next: showEvidence,
+        error: err => {
+          this.evidenceLoading = false;
+          this.evidenceError = err.error?.detail || 'Could not load the source documents.';
+          this.changeDetector.detectChanges();
+        }
+      });
+    }
   }
 
   editEvidenceItem() {
@@ -247,6 +295,7 @@ export class HitlDashboardComponent implements OnInit {
     this.isSaving = true;
     this.api.deleteClass(cls.class_id).subscribe({
       next: () => {
+        this.setDiagramGenerated(false);
         this.umlModel.classes = this.umlModel.classes.filter((item: any) => item.class_id !== cls.class_id);
         this.umlModel.relationships = this.umlModel.relationships.filter((rel: any) =>
           rel.source_class?.class_id !== cls.class_id && rel.target_class?.class_id !== cls.class_id);
@@ -269,6 +318,7 @@ export class HitlDashboardComponent implements OnInit {
       : this.api.deleteMethod(member.method_id);
     request.subscribe({
       next: () => {
+        this.setDiagramGenerated(false);
         const key = type === 'attribute' ? 'attributes' : 'methods';
         const idKey = type === 'attribute' ? 'attribute_id' : 'method_id';
         cls[key] = cls[key].filter((item: any) => item[idKey] !== member[idKey]);
@@ -287,6 +337,7 @@ export class HitlDashboardComponent implements OnInit {
     this.isSaving = true;
     this.api.deleteRelationship(rel.relationship_id).subscribe({
       next: () => {
+        this.setDiagramGenerated(false);
         this.umlModel.relationships = this.umlModel.relationships.filter((item: any) =>
           item.relationship_id !== rel.relationship_id);
         this.isSaving = false;
@@ -318,6 +369,7 @@ export class HitlDashboardComponent implements OnInit {
 
     request.subscribe({
       next: (savedRelationship) => {
+        this.setDiagramGenerated(false);
         if (this.isNewRelationship) {
           const sourceClass = this.umlModel.classes.find((cls: any) =>
             cls.class_id === savedRelationship.source_class_id);
@@ -392,6 +444,7 @@ export class HitlDashboardComponent implements OnInit {
 
     request.subscribe({
       next: (savedMember) => {
+        this.setDiagramGenerated(false);
         const memberKey = this.selectedMemberType === 'attribute' ? 'attributes' : 'methods';
         const members = this.selectedMemberClass[memberKey];
         const modelClass = this.umlModel.classes.find((cls: any) => cls.class_id === this.selectedMemberClass.class_id);
@@ -429,6 +482,12 @@ export class HitlDashboardComponent implements OnInit {
   closeModal(modalId: string){
     const modal = document.getElementById(modalId) as HTMLDialogElement
     modal?.close();
+  }
+
+  private setDiagramGenerated(generated: boolean): void {
+    window.dispatchEvent(new CustomEvent('model-diagram-state', {
+      detail: { modelId: this.modelId, generated }
+    }));
   }
 
   displayMethodName(methodName: string | undefined): string {

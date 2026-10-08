@@ -30,6 +30,133 @@
 	color: var(--system-accent);
 }
 
+.app-brand {
+	text-decoration: none;
+}
+
+.app-trail {
+	align-items: center;
+	border-bottom: 1px solid var(--system-border);
+	color: var(--system-text);
+	display: flex;
+	justify-content: center;
+	min-height: 2.75rem;
+	padding: 0.65rem 1.5rem;
+	position: relative;
+}
+
+.app-back {
+	background: transparent;
+	border: 0;
+	color: var(--system-muted);
+	cursor: pointer;
+	left: 1.5rem;
+	position: absolute;
+	text-decoration: none;
+}
+
+.app-back:hover,
+.app-back:focus-visible,
+.app-breadcrumbs a:hover,
+.app-breadcrumbs a:focus-visible {
+	color: var(--system-accent);
+	text-decoration: underline;
+}
+
+.app-breadcrumbs {
+	align-items: center;
+	display: flex;
+	gap: 0.4rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.app-breadcrumbs li {
+	align-items: center;
+	display: flex;
+}
+
+.app-breadcrumbs li + li::before {
+	color: var(--system-muted);
+	content: "›";
+	font-size: 1.2rem;
+	margin: 0 0.4rem;
+}
+
+.app-breadcrumbs a,
+.breadcrumb-step {
+	align-items: center;
+	border: 1px solid transparent;
+	border-radius: 0.65rem;
+	color: var(--system-muted);
+	display: inline-flex;
+	gap: 0.6rem;
+	min-height: 3rem;
+	padding: 0.35rem 0.65rem;
+	text-decoration: none;
+	transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.app-breadcrumbs a {
+	cursor: pointer;
+}
+
+.app-breadcrumbs a:hover,
+.app-breadcrumbs a:focus-visible {
+	border-color: var(--system-border);
+	color: var(--system-text);
+	outline: none;
+}
+
+.app-breadcrumbs .is-current a {
+	background: color-mix(in srgb, var(--system-accent) 12%, transparent);
+	border-color: var(--system-accent);
+	color: var(--system-text);
+}
+
+.app-breadcrumbs .is-disabled .breadcrumb-step {
+	color: #707780;
+	cursor: not-allowed;
+}
+
+.breadcrumb-number {
+	align-items: center;
+	border: 1px solid currentColor;
+	border-radius: 50%;
+	display: inline-flex;
+	flex: 0 0 1.65rem;
+	font-size: 0.8rem;
+	font-weight: 700;
+	height: 1.65rem;
+	justify-content: center;
+	width: 1.65rem;
+}
+
+.is-current .breadcrumb-number {
+	background: var(--system-accent);
+	border-color: var(--system-accent);
+	color: #ffffff;
+}
+
+.breadcrumb-copy {
+	display: grid;
+	gap: 0.08rem;
+	line-height: 1.15;
+	text-align: left;
+}
+
+.breadcrumb-copy strong {
+	font-size: 0.82rem;
+	font-weight: 650;
+	white-space: nowrap;
+}
+
+.breadcrumb-copy small {
+	font-size: 0.68rem;
+	white-space: nowrap;
+}
+
 .app-brand-mark {
 	align-items: center;
 	display: inline-flex;
@@ -68,5 +195,43 @@
 @media (max-width: 640px) {
 	.app-nav {
 		padding: 0 1rem;
+	}
+
+	.app-trail {
+		min-height: 3.75rem;
+		padding: 0.65rem 0.25rem 0.2rem;
+	}
+
+	.app-back {
+		left: 0.35rem;
+		top: 0.15rem;
+	}
+
+	.app-breadcrumbs {
+		gap: 0.05rem;
+	}
+
+	.app-breadcrumbs li + li::before {
+		margin: 0 0.05rem;
+	}
+
+	.app-breadcrumbs a,
+	.breadcrumb-step {
+		gap: 0.25rem;
+		padding: 0.3rem 0.2rem;
+	}
+
+	.breadcrumb-copy strong {
+		font-size: 0.65rem;
+	}
+
+	.breadcrumb-copy small {
+		font-size: 0.58rem;
+	}
+
+	.breadcrumb-number {
+		flex-basis: 1.35rem;
+		height: 1.35rem;
+		width: 1.35rem;
 	}
 }

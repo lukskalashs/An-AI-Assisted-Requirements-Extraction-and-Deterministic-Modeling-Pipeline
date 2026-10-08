@@ -10,27 +10,32 @@
       <!-- Confirm Button (UC-10) -->
       <button 
         class="btn btn-success" 
-        [disabled]="isLoading || !umlModel"
+        [disabled]="isGenerating || !umlModel"
         (click)="confirmAndGenerate()">
-        @if (isLoading) {
+        @if (isGenerating) {
           <span class="loading loading-spinner"></span>
         }
         Confirm and Generate
       </button>
     </div>
-
-    <!-- Loading / Error States -->
-    @if (isLoading && !umlModel) {
-      <div class="flex justify-center py-20">
-        <span class="loading loading-bars loading-lg text-primary"></span>
-      </div>
-    }
     
     @if (errorMessage) {
       <div class="alert alert-error dashboard-alert mb-6">
         <span>{{ errorMessage }}</span>
       </div>
     }
+
+    <!-- @if (pipelineStats) {
+      <section class="review-pipeline-stats mb-6 rounded-lg p-4" aria-label="NLP pipeline results">
+        <h2 class="font-bold">NLP Pipeline</h2>
+        <ul class="mt-2 space-y-1 font-mono text-sm">
+          <li>--- NLP PIPELINE ---</li>
+          <li>sanitised raw text.</li>
+          <li>Tokenized {{ pipelineStats.sentence_count }} sentences.</li>
+          <li>Generated {{ pipelineStats.chunk_count }} contextual chunks with {{ pipelineStats.overlap_words }}-word sliding overlap.</li>
+        </ul>
+      </section>
+    } Not needed in HITL dashboard, as this is already shown in the upload window. -->
 
     <!-- Extracted Data Tables (UC-08) -->
     @if (umlModel) {
@@ -57,13 +62,13 @@
                   @for (cls of umlModel.classes; track cls.class_name) {
                     <tr>
                       <td class="font-bold text-primary truncate">
-                        <button class="entity-link" (click)="openEvidence(cls, 'class')">{{ cls.class_name }}</button>
+                        <button class="entity-link" title="Click to review this class in its source document" (click)="openEvidence(cls, 'class')">{{ cls.class_name }}</button>
                         <span class="entity-kind-badge badge badge-ghost badge-sm">{{ cls.entity_kind || 'persistent_entity' }}</span>
                       </td>
                       <td class="whitespace-normal">
                         <div class="member-list">
                           @for (attr of cls.attributes; track attr.attribute_id) {
-                            <button class="member-badge badge badge-ghost badge-sm cursor-pointer" (click)="openEvidence(attr, 'attribute', cls)">
+                            <button class="member-badge badge badge-ghost badge-sm cursor-pointer" title="Click to review this attribute in its source document" (click)="openEvidence(attr, 'attribute', cls)">
                               {{ attr.attribute_name }} ({{ attr.data_type }})
                             </button>
                             <button class="member-delete" type="button" title="Delete attribute" aria-label="Delete attribute" (click)="deleteMember(cls, attr, 'attribute')">
@@ -76,7 +81,7 @@
                       <td class="whitespace-normal">
                         <div class="member-list">
                           @for (method of cls.methods; track method.method_id) {
-                            <button class="member-badge badge badge-outline badge-sm cursor-pointer" (click)="openEvidence(method, 'method', cls)">
+                            <button class="member-badge badge badge-outline badge-sm cursor-pointer" title="Click to review this method in its source document" (click)="openEvidence(method, 'method', cls)">
                               {{ method.method_name }}
                             </button>
                             <button class="member-delete" type="button" title="Delete method" aria-label="Delete method" (click)="deleteMember(cls, method, 'method')">
@@ -88,8 +93,8 @@
                       </td>
                       <td class="text-center">
                         <div class="action-buttons">
-                          <button class="btn btn-xs btn-outline btn-primary" (click)="openClassModal(cls)">Edit</button>
-                          <button class="btn btn-xs btn-outline btn-error" (click)="deleteClass(cls)">Delete</button>
+                          <button class="btn btn-xs btn-neutral" (click)="openClassModal(cls)">Edit</button>
+                          <button class="btn btn-xs btn-error" (click)="deleteClass(cls)">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -127,29 +132,29 @@
                   @for (rel of umlModel.relationships; track rel) {
                     <tr>
                       <td class="font-semibold truncate">
-                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                        <button class="entity-link" title="Click to review this relationship in its source document" (click)="openEvidence(rel, 'relationship')">
                           {{ rel.source_class?.class_name }}
                         </button>
                       </td>
                       <td>
-                        <button class="badge badge-primary gap-2 cursor-pointer" (click)="openEvidence(rel, 'relationship')">
+                        <button class="badge badge-primary gap-2 cursor-pointer" title="Click to review this relationship in its source document" (click)="openEvidence(rel, 'relationship')">
                           {{ rel.relationship_label ? rel.relationship_label + ' (' + rel.relationship_type + ')' : rel.relationship_type }}
                         </button>
                       </td>
                       <td class="font-semibold truncate">
-                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                        <button class="entity-link" title="Click to review this relationship in its source document" (click)="openEvidence(rel, 'relationship')">
                           {{ rel.target_class?.class_name }}
                         </button>
                       </td>
                       <td>
-                        <button class="entity-link" (click)="openEvidence(rel, 'relationship')">
+                        <button class="entity-link" title="Click to review this relationship in its source document" (click)="openEvidence(rel, 'relationship')">
                           {{ rel.multiplicity_source || '1' }} : {{ rel.multiplicity_target || '*' }}
                         </button>
                       </td>
                       <td class="text-center">
                         <div class="action-buttons">
-                          <button class="btn btn-xs btn-outline btn-primary" (click)="openRelationshipModal(rel)">Edit</button>
-                          <button class="btn btn-xs btn-outline btn-error" (click)="deleteRelationship(rel)">Delete</button>
+                          <button class="btn btn-xs btn-neutral" (click)="openRelationshipModal(rel)">Edit</button>
+                          <button class="btn btn-xs btn-error" (click)="deleteRelationship(rel)">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -197,7 +202,7 @@
         <label class="label"><span class="label-text font-semibold">Attributes</span></label>
         <div class="member-editor flex flex-wrap gap-2 p-3 rounded-lg">
           @for (attr of selectedClass.attributes; track attr.attribute_id) {
-            <button class="badge badge-ghost cursor-pointer" (click)="openEvidence(attr, 'attribute', selectedClass)">
+            <button class="badge badge-ghost cursor-pointer" title="Click to view this attribute's source evidence" (click)="openEvidence(attr, 'attribute', selectedClass)">
               {{ attr.attribute_name }}
             </button>
           }
@@ -209,7 +214,7 @@
         <label class="label"><span class="label-text font-semibold">Methods</span></label>
         <div class="member-editor flex flex-wrap gap-2 p-3 rounded-lg">
           @for (method of selectedClass.methods; track method.method_id) {
-            <button class="badge badge-outline cursor-pointer" (click)="openEvidence(method, 'method', selectedClass)">
+            <button class="badge badge-outline cursor-pointer" title="Click to view this method's source evidence" (click)="openEvidence(method, 'method', selectedClass)">
               {{ method.method_name }}
             </button>
           }
@@ -300,7 +305,15 @@
       <p class="text-sm text-muted mb-4">
         {{ evidenceType === 'class' ? evidenceItem.class_name : evidenceType === 'attribute' ? evidenceItem.attribute_name : evidenceType === 'method' ? displayMethodName(evidenceItem.method_name) : (evidenceItem.relationship_label ? evidenceItem.relationship_label + ' (' + evidenceItem.relationship_type + ')' : evidenceItem.relationship_type) }}
       </p>
-      @if (evidenceItem.source_evidence) {
+      @if (evidenceLoading) {
+        <div class="flex justify-center p-8"><span class="loading loading-spinner loading-md text-primary"></span></div>
+      } @else if (evidenceError) {
+        <div class="alert alert-error">{{ evidenceError }}</div>
+      } @else if (evidenceDocument && evidenceMatch) {
+        <p class="text-sm text-muted mb-2">Source document: {{ evidenceDocument.file_name }}</p>
+        <blockquote class="evidence-quote">{{ evidenceBefore }}<mark class="evidence-highlight">{{ evidenceMatch }}</mark>{{ evidenceAfter }}</blockquote>
+      } @else if (evidenceItem.source_evidence) {
+        <p class="evidence-empty">The stored evidence passage could not be located in the available source documents.</p>
         <blockquote class="evidence-quote">{{ evidenceItem.source_evidence }}</blockquote>
       } @else {
         <p class="evidence-empty">No supporting passage was recorded for this extracted item.</p>

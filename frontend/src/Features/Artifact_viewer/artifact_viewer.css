@@ -29,6 +29,19 @@
 	border-color: var(--system-border);
 }
 
+.diagram-card-heading {
+	align-items: center;
+	border-bottom: 1px solid var(--system-border);
+	display: flex;
+	gap: 1rem;
+	padding-bottom: 0.65rem;
+}
+
+.diagram-card-heading .card-title {
+	border: 0;
+	padding: 0;
+}
+
 .artifact-alert {
 	border: 1px solid var(--system-accent);
 	box-shadow: none;
@@ -41,6 +54,58 @@
 
 .diagram-surface:hover {
 	background: #f0f2f4;
+}
+
+.diagram-download-row {
+	display: flex;
+	justify-content: flex-end;
+	margin: 0.75rem 0 1rem;
+}
+
+.diagram-download {
+	position: relative;
+	width: fit-content;
+}
+
+.diagram-download summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.diagram-download summary::-webkit-details-marker {
+	display: none;
+}
+
+.diagram-download-menu {
+	background: var(--system-surface);
+	border: 1px solid var(--system-border);
+	border-radius: 0.5rem;
+	box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 25%);
+	color: var(--system-text);
+	display: none;
+	left: auto;
+	min-width: 13rem;
+	padding: 0.4rem;
+	position: static;
+	right: 0;
+	margin-top: 0.35rem;
+}
+
+.diagram-download[open] .diagram-download-menu {
+	display: grid;
+	margin-left: auto;
+}
+
+.diagram-download-menu button {
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.diagram-card-heading {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
 }
 
 .artifact-page .text-muted {

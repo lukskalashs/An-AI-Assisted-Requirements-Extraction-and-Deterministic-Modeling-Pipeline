@@ -1,26 +1,31 @@
-<div class="upload-page flex items-center justify-center min-h-screen p-4">
-  <div class="card upload-card w-full max-w-lg">
-    <div class="card-body text-center">
+<div class="upload-page min-h-screen p-4">
+  <div class="upload-content mx-auto max-w-4xl">
+    <div class="upload-primary flex justify-center py-12">
+      <div class="card upload-card w-full max-w-lg">
+        <div class="card-body text-center">
       
       <!-- Header -->
-      <h2 class="text-3xl font-extrabold text-primary mb-2">Upload SRS Document</h2>
-      <p class="text-muted mb-6">Select a Software Requirements Specification document to automatically extract UML entities.</p>
+      <h1 class="text-3xl font-extrabold text-primary mb-2">From requirements to reviewed software models</h1>
+      <p class="text-muted mb-6">Upload a PDF or TXT spec to extract classes, attributes, methods, and relationships. Review the source evidence, then generate UML, ERD, and C# outputs</p>
       
       <!-- File Input -->
       <div class="form-control w-full max-w-xs mx-auto">
         <input 
-          type="file" 
+          type="file"
+          multiple
           class="file-input file-input-bordered file-input-primary w-full shadow-sm" 
           accept=".txt,.pdf"
-          (change)="onFileSelected($event)" 
+          (change)="onFileSelected($event)"
         />
         <label class="label">
-          <span class="label-text-alt text-muted">Supported formats: .PDF, .TXT</span>
+          <span class="label-text-alt text-muted">Select multiple .PDF and .TXT documents</span>
         </label>
-        @if (selectedFile) {
-          <div class="selected-file" aria-live="polite">
-            <span class="selected-file-label">Selected document</span>
-            <strong>{{ selectedFile.name }}</strong>
+        @if (selectedFiles.length) {
+          <div class="selected-files" aria-live="polite">
+            <span class="selected-file-label">Selected documents ({{ selectedFiles.length }})</span>
+            @for (file of selectedFiles; track $index) {
+              <strong>{{ file.name }}</strong>
+            }
           </div>
         }
       </div>
@@ -51,16 +56,59 @@
       <div class="card-actions justify-center mt-8">
         <button 
           class="btn btn-primary w-full max-w-xs text-lg" 
-          [disabled]="!selectedFile || isProcessing"
+          [disabled]="!selectedFiles.length || isProcessing"
           (click)="processDocument()">
           <!-- Loading Spinner -->
           @if (isProcessing) {
             <span class="loading loading-spinner"></span>
           }
-          {{ isProcessing ? 'Extracting Entities...' : 'Upload & Process' }}
+          {{ isProcessing ? 'Processing specifications...' : 'Upload & Extract Model' }}
         </button>
       </div>
       
+        </div>
+      </div>
     </div>
+
+    <section class="how-it-works mb-12" aria-labelledby="how-it-works-title">
+      <header class="how-it-works-heading">
+        <h2 id="how-it-works-title">How does it work?</h2>
+        <p>Turn specification documents into traceable, editable software design outputs.</p>
+      </header>
+      <ol class="workflow-steps">
+        <li class="workflow-step">
+          <span class="workflow-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+          </span>
+          <span class="workflow-step-label">STEP 1</span>
+          <h3>Upload specifications</h3>
+          <p>Add one or more PDF or TXT requirements documents to a project.</p>
+        </li>
+        <li class="workflow-step">
+          <span class="workflow-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+          </span>
+          <span class="workflow-step-label">STEP 2</span>
+          <h3>Extract the model</h3>
+          <p>LLM identifies candidate classes, fields, methods, and relationships.</p>
+        </li>
+        <li class="workflow-step">
+          <span class="workflow-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M4 5.5v13M8 7h8M8 11h8M8 15h5"/></svg>
+          </span>
+          <span class="workflow-step-label">STEP 3</span>
+          <h3>Review source evidence</h3>
+          <p>Inspect highlighted passages and edit the extracted model before approval.</p>
+        </li>
+        <li class="workflow-step">
+          <span class="workflow-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 15 9l6 .9-4.5 4.4 1.1 6.2L12 17.6l-5.6 2.9 1.1-6.2L3 9.9 9 9z"/></svg>
+          </span>
+          <span class="workflow-step-label">STEP 4</span>
+          <h3>Generate and download</h3>
+          <p>View UML and ERD diagrams, download editable diagrams, and export C# classes.</p>
+        </li>
+      </ol>
+    </section>
   </div>
 </div>

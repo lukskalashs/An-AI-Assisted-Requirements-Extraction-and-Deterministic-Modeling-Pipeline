@@ -1,10 +1,58 @@
 <div class="system-shell min-h-screen font-sans">
   <nav class="app-nav" aria-label="Primary navigation">
-    <button class="app-brand" type="button" (click)="resetPageState()" aria-label="Return to upload page">
+    <a class="app-brand" routerLink="/upload" aria-label="Return to upload page">
       <span class="app-brand-mark" aria-hidden="true"><span></span><code>&lt;/&gt;</code></span>
       <span>Spec -&gt; Code</span>
-    </button>
+    </a>
   </nav>
+
+  <div class="app-trail" aria-label="Page navigation">
+    @if (showBackButton) {
+      <button class="app-back" type="button" (click)="goBack()">Back</button>
+    }
+    <nav aria-label="Breadcrumb">
+      <ol class="app-breadcrumbs">
+        <li [class.is-current]="currentStage === 'upload'">
+          <a [routerLink]="['/upload']"
+             [queryParams]="modelId ? { modelId: modelId } : null"
+             [attr.aria-current]="currentStage === 'upload' ? 'step' : null">
+            <span class="breadcrumb-number">1</span>
+            <span class="breadcrumb-copy"><strong>Upload</strong><small>{{ modelId ? 'Complete' : 'Current step' }}</small></span>
+          </a>
+        </li>
+        <li [class.is-current]="currentStage === 'requirements'"
+            [class.is-disabled]="!modelId">
+          @if (modelId) {
+            <a [routerLink]="['/hitl-dashboard', modelId]"
+               [attr.aria-current]="currentStage === 'requirements' ? 'step' : null">
+              <span class="breadcrumb-number">2</span>
+              <span class="breadcrumb-copy"><strong>Requirements review</strong><small>{{ currentStage === 'requirements' ? 'Current step' : diagramsReady ? 'Complete' : 'Review needed' }}</small></span>
+            </a>
+          } @else {
+            <span class="breadcrumb-step" aria-disabled="true">
+              <span class="breadcrumb-number">2</span>
+              <span class="breadcrumb-copy"><strong>Requirements review</strong><small>Upload documents first</small></span>
+            </span>
+          }
+        </li>
+        <li [class.is-current]="currentStage === 'diagrams'"
+            [class.is-disabled]="!diagramsReady">
+          @if (diagramsReady) {
+            <a [routerLink]="['/artifacts', modelId]"
+               [attr.aria-current]="currentStage === 'diagrams' ? 'step' : null">
+              <span class="breadcrumb-number">3</span>
+              <span class="breadcrumb-copy"><strong>Diagrams</strong><small>{{ currentStage === 'diagrams' ? 'Current step' : 'Ready to view' }}</small></span>
+            </a>
+          } @else {
+            <span class="breadcrumb-step" aria-disabled="true">
+              <span class="breadcrumb-number">3</span>
+              <span class="breadcrumb-copy"><strong>Diagrams</strong><small>{{ modelId ? 'Generate after review' : 'Upload documents first' }}</small></span>
+            </span>
+          }
+        </li>
+      </ol>
+    </nav>
+  </div>
 
   <main class="w-full py-6">
     

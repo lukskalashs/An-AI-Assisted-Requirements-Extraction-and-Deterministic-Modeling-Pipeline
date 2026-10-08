@@ -58,7 +58,7 @@ export class ArtifactViewerComponent implements OnInit, OnDestroy {
     
 
     forkJoin({
-      uml: this.apiService.generateDiagram(this.modelId),
+      uml: this.apiService.getGeneratedDiagram(this.modelId),
       erd: this.apiService.getErdVisual(this.modelId)
     }).subscribe({
       next: ({ uml, erd }) => {
@@ -111,10 +111,7 @@ export class ArtifactViewerComponent implements OnInit, OnDestroy {
     let i = 0;
     this.ProgressInterval = setInterval(() => {
       this.progressStep = steps[i % steps.length]
-      this.progressValue +- Math.floor(Math.random() * 15) + 5;
-
-      if(this.progressValue > 90)
-        this.progressValue = 90; //Cap at 90 until the backend return
+      this.progressValue = Math.min(90, this.progressValue + Math.floor(Math.random() * 15) + 5);
       i++;
       this.changeDetector.detectChanges();
     }, 3000);
@@ -143,41 +140,99 @@ export class ArtifactViewerComponent implements OnInit, OnDestroy {
     link.href = url;
     link.download = filename;
     link.click();
-    window.URL.revokeObjectURL(url);
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   }
 
-  // Dowload C# Code as .cs files
-
   downloadCSharp(): void {
-    this.apiService.exportCSharpCode(this.modelId).subscribe({
-      next: (res) => {
-        //Combine all generated C# classes into a single file for easy download
-
-        let combinedCode = "";
-
-        for (const className in res.classes) {
-          combinedCode += res.classes[className] + "\n\n";
-        }
-
-        const fileBlob = new Blob([combinedCode], { type: 'text/plain' });
-        this.triggerDownload(fileBlob, `DomainModels_Models${this.modelId}.cs`);
-      },
+    this.apiService.downloadCSharpClasses(this.modelId).subscribe({
+      next: blob => this.triggerDownload(blob, `DomainModels_${this.modelId}.zip`),
       error: (err) => {
         console.error('C# export API error:', err);
-        this.errorMessage = err.error?.detail || 'Could not generate the C# classes. Check the backend logs.';
+        this.errorMessage = 'Could not generate the C# classes. Check the backend logs.';
       },
     });
   }
 
+  downloadDiagram(kind: 'uml' | 'erd', format: 'svg' | 'png' | 'drawio'): void {
+    document.querySelectorAll<HTMLDetailsElement>('.diagram-download details').forEach(menu => {
+      menu.open = false;
+    });
+    if (format === 'drawio') {
+      this.apiService.downloadDiagram(this.modelId, kind, 'drawio').subscribe({
+        next: blob => this.triggerDownload(blob, `${kind.toUpperCase()}_Model_${this.modelId}.drawio`),
+        error: err => {
+          console.error(`${kind.toUpperCase()} draw.io export error:`, err);
+          this.errorMessage = `Could not generate the editable ${kind.toUpperCase()} draw.io diagram.`;
+        }
+      });
+      return;
+    }
 
-  // Download OpenAPI YAML as .yaml file
+    this.apiService.downloadDiagram(this.modelId, kind, 'svg').subscribe({
+      next: svg => {
+        if (format === 'svg') {
+          this.triggerDownload(svg, `${kind.toUpperCase()}_Model_${this.modelId}.svg`);
+          return;
+        }
+        this.svgToPng(svg).then(
+          png => this.triggerDownload(png, `${kind.toUpperCase()}_Model_${this.modelId}.png`),
+          error => {
+            console.error(`${kind.toUpperCase()} PNG conversion error:`, error);
+            this.errorMessage = `Could not convert the ${kind.toUpperCase()} diagram to PNG.`;
+          }
+        );
+      },
+      error: err => {
+        console.error(`${kind.toUpperCase()} SVG export error:`, err);
+        this.errorMessage = `Could not generate the ${kind.toUpperCase()} diagram download.`;
+      }
+    });
+  }
+
+  private svgToPng(svg: Blob): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const sourceUrl = window.URL.createObjectURL(svg);
+      const image = new Image();
+      image.onload = () => {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth * scale;
+        canvas.height = image.naturalHeight * scale;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          window.URL.revokeObjectURL(sourceUrl);
+          reject(new Error('Canvas is unavailable for PNG export.'));
+          return;
+        }
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.scale(scale, scale);
+        context.drawImage(image, 0, 0);
+        canvas.toBlob(blob => {
+          window.URL.revokeObjectURL(sourceUrl);
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('The browser could not encode the diagram as PNG.'));
+          }
+        }, 'image/png');
+      };
+      image.onerror = () => {
+        window.URL.revokeObjectURL(sourceUrl);
+        reject(new Error('The generated SVG could not be loaded for PNG export.'));
+      };
+      image.src = sourceUrl;
+    });
+  }
 
   downloadYaml(): void {
-    this.apiService.exportOpenApi(this.modelId).subscribe(res => {
-      const fileBlob = new Blob([res], {type: 'text/yaml'} );
-
-      this.triggerDownload(fileBlob, `API_Contract_Models${this.modelId}.yaml`)
-    })
+    this.apiService.exportOpenApi(this.modelId).subscribe({
+      next: res => this.triggerDownload(new Blob([res], { type: 'text/yaml' }), `API_Contract_Models${this.modelId}.yaml`),
+      error: err => {
+        console.error('OpenAPI export API error:', err);
+        this.errorMessage = err.error?.detail || 'Could not generate the OpenAPI contract.';
+      }
+    });
   }
 
   // onDiagramError(diagramName: string): void {

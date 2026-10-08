@@ -9,16 +9,18 @@ from models.database import Document
 import schemas
 from services.nlp_processor import chunk_text
 from services.llm_pipeline import extracted_uml_entities_from_chunks
-from models.database import UMLModel, UMLClass, UMLAttribute, UMLRelationship, UMLMethod
+from models.database import UMLModel, UMLClass, UMLAttribute, UMLRelationship, UMLMethod, GeneratedDiagram
 from services.uml_generator import generate_plantuml_syntax
 from services.conflict_detector import analyse_model_conflicts
 from services.erd_visual_generator import generate_plantuml_erd
 from services.code_generator import generate_csharp_classes
+from services.drawio_generator import generate_diagram_svg, generate_drawio_xml
 from services.yaml_generator import generate_openapi_yaml
 from services.relationship_normalizer import canonicalize_relationship
 from fastapi import Response 
 import re
 import os
+import zipfile
 # from generators.erd_generator import generate_sql_ddl
 
 
@@ -104,6 +106,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def mark_model_modified(db: Session, model_id: int) -> None:
+    model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if model:
+        model.status = "pending review"
+
 
 @app.get("/")
 def root():
@@ -223,28 +232,43 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
     Also make the persistebr in our db
     """
 
-    # 1stly fetch the document from the database
     document = db.query(Document).filter(Document.document_id == document_id).first()
-    
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    
     if not document.raw_text:
         raise HTTPException(status_code=400, detail="Document has no raw text to process.")
-    
-    # 2ndly chunk the text(using the sliding window approach
-    pipeline_stats = {}
-    chunks = chunk_text(document.raw_text, pipeline_stats=pipeline_stats)
 
-    # Send to the LLM pipeline to extract UML entities
+    return extract_model_from_documents([document], db)
+
+
+@app.post("/projects/{project_id}/extract")
+def extract_uml_entities_from_project(project_id: int, db: Session = Depends(get_db)):
+    documents = (
+        db.query(Document)
+        .filter(Document.project_id == project_id)
+        .order_by(Document.document_id)
+        .all()
+    )
+    if not documents:
+        raise HTTPException(status_code=404, detail="No specification documents were uploaded to this project.")
+    if any(not document.raw_text for document in documents):
+        raise HTTPException(status_code=400, detail="Every specification document must contain extractable text.")
+
+    return extract_model_from_documents(documents, db)
+
+
+def extract_model_from_documents(documents: list[Document], db: Session):
+    document = documents[0]
+    source_text = "\n\n".join(item.raw_text for item in documents)
+    pipeline_stats = {}
+    chunks = chunk_text(source_text, pipeline_stats=pipeline_stats)
+
     extracted_json = extracted_uml_entities_from_chunks(chunks)
 
     extracted_classes = extracted_json.get("classes", [])
     extacted_relationships = extracted_json.get("relationships",[])
     model_warnings = analyse_model_conflicts(extracted_classes, extacted_relationships)
 
-
-    # Mapping, Primary UMLModel container
 
     new_model = UMLModel(
         project_id = document.project_id,
@@ -253,8 +277,6 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
     )
     db.add(new_model)
     db.flush()
-
-    #Populate database with Extracted Classes, Attr and Methods
 
     class_name_map = {}
 
@@ -265,7 +287,7 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
             is_abstract=cls_data.get("is_abstract", False),
             is_validated=False,
             entity_kind=cls_data.get("entity_kind", "persistent_entity"),
-            source_evidence=evidence_for(document.raw_text, cls_data.get("class_name", ""), cls_data.get("evidence"))
+            source_evidence=evidence_for(source_text, cls_data.get("class_name", ""), cls_data.get("evidence"))
 
         )
         db.add(db_class)
@@ -287,7 +309,7 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
                 attribute_name=attr.get("name"),
                 data_type=attr.get("data_type", "String"),
                 visibility=attr.get("visibility", "public"),
-                source_evidence=evidence_for(document.raw_text, attr.get("name", ""), attr.get("evidence"))
+                source_evidence=evidence_for(source_text, attr.get("name", ""), attr.get("evidence"))
 
             )
             db.add(db_attribute)
@@ -299,7 +321,7 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
                 method_name = method.get("name"),
                 return_type = method.get("return_type", "void"),
                 visibility=method.get("visibility", "public"),
-                source_evidence=evidence_for(document.raw_text, method.get("name", ""), method.get("evidence"))
+                source_evidence=evidence_for(source_text, method.get("name", ""), method.get("evidence"))
             )
             db.add(db_method)
     
@@ -341,7 +363,7 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
                 multiplicity_source=source_mult,
                 multiplicity_target=target_mult,
                 source_evidence=relationship_evidence_for(
-                    document.raw_text,
+                    source_text,
                     relationship_data.get("source_class", ""),
                     relationship_data.get("target_class", ""),
                     relationship_data.get("evidence"),
@@ -353,13 +375,15 @@ def extract_uml_entities_from_document(document_id: int, db: Session = Depends(g
         else:
             print(f"Warning: Dropped relationship between '{src_name}' and '{tgt_name}' due to class mismatch.")
     
-    document.processing_status = "extracted"
+    for item in documents:
+        item.processing_status = "extracted"
     db.commit()
 
     return {
         "message": "UML Metamodel extraction successfully processed and committed to relational tables.",
         "model_id": new_model.model_id,
         "document_id": document.document_id,
+        "document_ids": [item.document_id for item in documents],
         "classes_extracted_count": len(class_name_map),
         "relationships_extracted_count": relationships_saved,
         "warnings": model_warnings,
@@ -384,6 +408,29 @@ def generate_diagram(model_id: int, db: Session = Depends(get_db)):
         "plantuml_syntax": syntax
     }
 
+
+@app.get("/models/{model_id}/generated-diagram")
+def get_generated_diagram(model_id: int, db: Session = Depends(get_db)):
+    model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    if model.status != "diagram_generated":
+        raise HTTPException(status_code=409, detail="The model has changed. Confirm and generate the diagrams again.")
+    diagram = (
+        db.query(GeneratedDiagram)
+        .filter(GeneratedDiagram.model_id == model_id)
+        .order_by(GeneratedDiagram.diagram_id.desc())
+        .first()
+    )
+    if not diagram:
+        raise HTTPException(status_code=404, detail="Generated diagram not found")
+    return {
+        "message": "Generated PlantUML diagram retrieved.",
+        "model_id": model_id,
+        "plantuml_syntax": diagram.plantuml_syntax,
+    }
+
+
 # Human - In - The - Loop - endpoints
 
 @app.get("/Models/{model_id}")
@@ -397,10 +444,21 @@ def get_uml_model(model_id: int, db: Session = Depends(get_db)):
     if not db_model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    source_documents = (
+        db.query(Document)
+        .filter(Document.project_id == db_model.project_id)
+        .order_by(Document.document_id)
+        .all()
+    )
+    source_text = "\n\n".join(item.raw_text or "" for item in source_documents)
+    pipeline_stats = {}
+    chunk_text(source_text, pipeline_stats=pipeline_stats)
+
     # Manually construct the dictionary to guarantee exact frontend match
     return {
         "model_id": db_model.model_id,
         "status": db_model.status,
+        "nlp_pipeline": pipeline_stats,
         "classes": [
             {
                 "class_id": c.class_id,
@@ -408,14 +466,14 @@ def get_uml_model(model_id: int, db: Session = Depends(get_db)):
                 "is_abstract": c.is_abstract,
                 "is_validated": c.is_validated,
                 "entity_kind": c.entity_kind or "persistent_entity",
-                "source_evidence": evidence_for(db_model.document.raw_text if db_model.document else "", c.class_name, c.source_evidence),
+                "source_evidence": evidence_for(source_text, c.class_name, c.source_evidence),
                 "attributes": [{
                     "attribute_id": a.attribute_id,
                     "class_id": a.class_id,
                     "attribute_name": a.attribute_name,
                     "data_type": a.data_type,
                     "visibility": a.visibility,
-                    "source_evidence": evidence_for(db_model.document.raw_text if db_model.document else "", a.attribute_name, a.source_evidence)
+                    "source_evidence": evidence_for(source_text, a.attribute_name, a.source_evidence)
                 } for a in c.attributes],
                 "methods": [{
                     "method_id": m.method_id,
@@ -423,7 +481,7 @@ def get_uml_model(model_id: int, db: Session = Depends(get_db)):
                     "method_name": m.method_name,
                     "return_type": m.return_type,
                     "visibility": m.visibility,
-                    "source_evidence": evidence_for(db_model.document.raw_text if db_model.document else "", m.method_name, m.source_evidence)
+                    "source_evidence": evidence_for(source_text, m.method_name, m.source_evidence)
                 } for m in c.methods]
             } for c in db_model.classes
         ],
@@ -449,13 +507,32 @@ def get_uml_model(model_id: int, db: Session = Depends(get_db)):
                 "multiplicity_source": r.multiplicity_source,
                 "multiplicity_target": r.multiplicity_target,
                 "source_evidence": evidence_for(
-                    db_model.document.raw_text if db_model.document else "",
+                    source_text,
                     f"{r.source_class.class_name if r.source_class else ''} {r.target_class.class_name if r.target_class else ''}",
                     r.source_evidence
                 )
             } for r in db_model.relationships
         ]
     }
+
+
+@app.get("/models/{model_id}/source-documents")
+def get_model_source_documents(model_id: int, db: Session = Depends(get_db)):
+    db_model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    documents = (
+        db.query(Document)
+        .filter(Document.project_id == db_model.project_id)
+        .order_by(Document.document_id)
+        .all()
+    )
+    return [
+        {"document_id": item.document_id, "file_name": item.file_name, "raw_text": item.raw_text}
+        for item in documents
+    ]
+
+
 @app.put("/relationships/{relationship_id}", response_model=schemas.RelationshipResponse)
 
 
@@ -476,6 +553,7 @@ def update_uml_relationship(relationship_id: int, rel_update: schemas.Relationsh
     db_rel.relationship_label = rel_update.relationship_label
     db_rel.multiplicity_source = rel_update.multiplicity_source
     db_rel.multiplicity_target = rel_update.multiplicity_target
+    mark_model_modified(db, db_rel.model_id)
 
     db.commit()
     db.refresh(db_rel)
@@ -504,6 +582,7 @@ def create_uml_relationship(model_id: int, relationship: schemas.RelationshipCre
         **relationship.model_dump()
     )
     db.add(db_relationship)
+    db_model.status = "pending review"
     db.commit()
     db.refresh(db_relationship)
     return db_relationship
@@ -525,6 +604,7 @@ def update_uml_class(class_id:int, class_update: schemas.ClassBase, db: Session 
     db_class.is_abstract = class_update.is_abstract
     db_class.is_validated = class_update.is_validated
     db_class.entity_kind = class_update.entity_kind
+    mark_model_modified(db, db_class.model_id)
 
     db.commit()
     db.refresh(db_class)
@@ -541,6 +621,7 @@ def create_uml_class(model_id: int, class_data: schemas.ClassBase, db: Session =
 
     db_class = UMLClass(model_id=model_id, **class_data.model_dump())
     db.add(db_class)
+    db_model.status = "pending review"
     db.commit()
     db.refresh(db_class)
     return db_class
@@ -552,11 +633,13 @@ def delete_uml_class(class_id: int, db: Session = Depends(get_db)):
     if not db_class:
         raise HTTPException(status_code=404, detail="Class not found")
 
+    model_id = db_class.model_id
     db.query(UMLRelationship).filter(
         (UMLRelationship.source_class_id == class_id) |
         (UMLRelationship.target_class_id == class_id)
     ).delete(synchronize_session=False)
     db.delete(db_class)
+    mark_model_modified(db, model_id)
     db.commit()
     return {"message": "Class deleted", "class_id": class_id}
 
@@ -569,6 +652,7 @@ def create_uml_attribute(class_id: int, attribute: schemas.AttributeBase, db: Se
 
     db_attribute = UMLAttribute(class_id=class_id, **attribute.model_dump())
     db.add(db_attribute)
+    mark_model_modified(db, db_class.model_id)
     db.commit()
     db.refresh(db_attribute)
     return db_attribute
@@ -582,6 +666,7 @@ def update_uml_attribute(attribute_id: int, attribute: schemas.AttributeBase, db
 
     for field, value in attribute.model_dump().items():
         setattr(db_attribute, field, value)
+    mark_model_modified(db, db_attribute.uml_class.model_id)
     db.commit()
     db.refresh(db_attribute)
     return db_attribute
@@ -592,6 +677,7 @@ def delete_uml_attribute(attribute_id: int, db: Session = Depends(get_db)):
     db_attribute = db.query(UMLAttribute).filter(UMLAttribute.attribute_id == attribute_id).first()
     if not db_attribute:
         raise HTTPException(status_code=404, detail="Attribute not found")
+    mark_model_modified(db, db_attribute.uml_class.model_id)
     db.delete(db_attribute)
     db.commit()
     return {"message": "Attribute deleted", "attribute_id": attribute_id}
@@ -605,6 +691,7 @@ def create_uml_method(class_id: int, method: schemas.MethodBase, db: Session = D
 
     db_method = UMLMethod(class_id=class_id, **method.model_dump())
     db.add(db_method)
+    mark_model_modified(db, db_class.model_id)
     db.commit()
     db.refresh(db_method)
     return db_method
@@ -618,6 +705,7 @@ def update_uml_method(method_id: int, method: schemas.MethodBase, db: Session = 
 
     for field, value in method.model_dump().items():
         setattr(db_method, field, value)
+    mark_model_modified(db, db_method.uml_class.model_id)
     db.commit()
     db.refresh(db_method)
     return db_method
@@ -628,6 +716,7 @@ def delete_uml_method(method_id: int, db: Session = Depends(get_db)):
     db_method = db.query(UMLMethod).filter(UMLMethod.method_id == method_id).first()
     if not db_method:
         raise HTTPException(status_code=404, detail="Method not found")
+    mark_model_modified(db, db_method.uml_class.model_id)
     db.delete(db_method)
     db.commit()
     return {"message": "Method deleted", "method_id": method_id}
@@ -638,6 +727,7 @@ def delete_uml_relationship(relationship_id: int, db: Session = Depends(get_db))
     db_relationship = db.query(UMLRelationship).filter(UMLRelationship.relationship_id == relationship_id).first()
     if not db_relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
+    mark_model_modified(db, db_relationship.model_id)
     db.delete(db_relationship)
     db.commit()
     return {"message": "Relationship deleted", "relationship_id": relationship_id}
@@ -694,6 +784,68 @@ def export_csharp_code(model_id: int, db: Session = Depends(get_db)):
         "model_id": model_id,
         "classes": generated_classes
     }
+
+
+@app.get("/models/{model_id}/code/csharp/download")
+def download_csharp_classes(model_id: int, db: Session = Depends(get_db)):
+    db_model = db.query(UMLModel).filter(UMLModel.model_id == model_id).first()
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found!")
+
+    try:
+        generated_classes = generate_csharp_classes(db, model_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot generate C# classes: {exc}",
+        ) from exc
+    if not generated_classes:
+        raise HTTPException(status_code=400, detail="Could not generate code. Ensure the model has extracted classes.")
+
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for class_name, class_code in generated_classes.items():
+            safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", class_name).strip("_") or "GeneratedClass"
+            bundle.writestr(f"{safe_name}.cs", class_code)
+
+    return Response(
+        content=archive.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="DomainModels_{model_id}.zip"'},
+    )
+
+
+@app.get("/models/{model_id}/diagram/{diagram_type}/drawio")
+def export_drawio_diagram(model_id: int, diagram_type: str, db: Session = Depends(get_db)):
+    if not db.query(UMLModel).filter(UMLModel.model_id == model_id).first():
+        raise HTTPException(status_code=404, detail="Model not found")
+    if diagram_type not in {"uml", "erd"}:
+        raise HTTPException(status_code=422, detail="Diagram type must be 'uml' or 'erd'.")
+    diagram = generate_drawio_xml(db, model_id, diagram_type)
+    if not diagram:
+        raise HTTPException(status_code=400, detail=f"Could not generate the {diagram_type.upper()} diagram for this model.")
+    return Response(
+        content=diagram,
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{diagram_type.upper()}_Model_{model_id}.drawio"'},
+    )
+
+
+@app.get("/models/{model_id}/diagram/{diagram_type}/svg")
+def export_diagram_svg(model_id: int, diagram_type: str, db: Session = Depends(get_db)):
+    if not db.query(UMLModel).filter(UMLModel.model_id == model_id).first():
+        raise HTTPException(status_code=404, detail="Model not found")
+    if diagram_type not in {"uml", "erd"}:
+        raise HTTPException(status_code=422, detail="Diagram type must be 'uml' or 'erd'.")
+    diagram = generate_diagram_svg(db, model_id, diagram_type)
+    if not diagram:
+        raise HTTPException(status_code=400, detail=f"Could not generate the {diagram_type.upper()} diagram for this model.")
+    return Response(
+        content=diagram,
+        media_type="image/svg+xml",
+        headers={"Content-Disposition": f'attachment; filename="{diagram_type.upper()}_Model_{model_id}.svg"'},
+    )
+
 
 @app.get("/models/{model_id}/openapi")
 def export_openapi_contract(model_id: int, db: Session = Depends(get_db)):

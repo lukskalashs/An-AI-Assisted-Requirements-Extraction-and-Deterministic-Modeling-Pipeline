@@ -32,11 +32,20 @@ I copied the producted PlantUML syntax and pasted on "https://www.planttext.com/
 ## System Architecture & Workflow
 This FastAPI backend executes the following multi-stage pipeline:
 
-1. **Document Ingestion:** Securely uploads PDFs/TXTs and sanitizes broken Unicode characters.
+1. **Document Ingestion:** Uploads one or more PDFs/TXTs into a single project and sanitizes broken Unicode characters.
 2. **Intelligent Chunking (`spaCy`):** Slices text using a sliding-window overlap to preserve context without exceeding LLM token limits.
 3. **Semantic Extraction (LLM):** Uses an AI API to read chunks and strictly format the output into a deterministic JSON metamodel via Pydantic validation.
 4. **Relational Persistence:** Maps the AI's output into a highly structured SQLite database (using fuzzy-matching for relationships to prevent string-mismatch orphans).
 5. **Rule Engine:** Deterministically compiles the database records into syntactically perfect PlantUML code.
+
+The review flow links extracted classes, attributes, methods, and relationships to
+their source passages. Selecting an item opens its matching text highlighted in
+the original document. Generated C# classes download as a ZIP with one `.cs` file
+per class. UML and ERD diagrams can be downloaded as SVG or PNG images, or as
+editable `.drawio` files with class/entity fields and relationship cardinalities.
+Previously generated diagrams remain available while the model is unchanged;
+editing the model requires confirming and regenerating before the diagrams can
+be reopened.
 
 For the AI-Driven Job Matching Platform SRS, extraction preserves the canonical domain entities
 `JobSeeker`, `Employer`, `JobPosting`, `Admin`, `Notification`, `IntegrationPartner`,

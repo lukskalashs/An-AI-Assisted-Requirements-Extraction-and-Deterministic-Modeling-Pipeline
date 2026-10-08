@@ -86,6 +86,12 @@
 	border: 1px solid var(--dashboard-border);
 }
 
+.review-pipeline-stats {
+	background: var(--dashboard-surface-muted);
+	border: 1px solid var(--dashboard-border);
+	color: var(--dashboard-text);
+}
+
 .member-editor {
 	background: var(--dashboard-surface-muted);
 }
@@ -161,8 +167,8 @@
 
 .member-delete {
 	align-items: center;
-	background: color-mix(in srgb, var(--dashboard-accent) 18%, transparent);
-	border: 1px solid color-mix(in srgb, var(--dashboard-accent) 70%, var(--dashboard-border));
+	background: var(--dashboard-accent);
+	border: 1px solid var(--dashboard-accent);
 	border-radius: 0.35rem;
 	cursor: pointer;
 	display: inline-flex;
@@ -176,7 +182,7 @@
 
 .member-delete svg {
 	height: 0.75rem;
-	stroke: var(--dashboard-accent);
+	stroke: #ffffff;
 	stroke-linecap: round;
 	stroke-width: 1.75;
 	width: 0.75rem;
@@ -184,14 +190,9 @@
 
 .member-delete:hover,
 .member-delete:focus-visible {
-	background: var(--dashboard-accent);
-	border-color: var(--dashboard-accent);
+	background: var(--dashboard-accent-dark);
+	border-color: var(--dashboard-accent-dark);
 	outline: none;
-}
-
-.member-delete:hover svg,
-.member-delete:focus-visible svg {
-	stroke: #ffffff;
 }
 
 .evidence-quote {
@@ -205,6 +206,14 @@
 	overflow-y: auto;
 	padding: 1rem;
 	white-space: pre-wrap;
+}
+
+.evidence-highlight {
+	background: #ffdd57;
+	border-radius: 0.15rem;
+	color: #151515;
+	font-weight: 700;
+	padding: 0.05rem 0.12rem;
 }
 
 .evidence-empty {
