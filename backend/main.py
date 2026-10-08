@@ -14,7 +14,8 @@ from services.uml_generator import generate_plantuml_syntax
 from services.conflict_detector import analyse_model_conflicts
 from services.erd_visual_generator import generate_plantuml_erd
 from services.code_generator import generate_csharp_classes
-from services.drawio_generator import generate_diagram_svg, generate_drawio_xml
+from services.drawio_generator import generate_drawio_xml
+from services.svg_generator import generate_diagram_svg
 from services.yaml_generator import generate_openapi_yaml
 from services.relationship_normalizer import canonicalize_relationship
 from fastapi import Response 
