@@ -1,97 +1,93 @@
-# AI-Assisted Requirements Extraction and Deterministic Modeling Pipeline
+# Spec -> Code
 
-**Author:** Lukhanyo Floris Kalashe (2023575000)
-**Project:** CSIS6809 Honours Project
-**Supervisor:** Mr W.S.J Marais
+Turn software requirements documents into reviewable, source-linked software models.
 
-## Mid-Year Demo 1 Update
-The core backend architecture for this Model-Driven Architecture (MDA) pipeline is now fully operational. The system successfully bridges the gap between unconstrained natural language and deterministic software modeling.
+**Try the live application:** [an-ai-assisted-requirements-extraction.onrender.com](https://an-ai-assisted-requirements-extraction.onrender.com/)
 
-### Proof of Execution
-To review the results of the pipeline without needing to execute the API locally, please view the `/Demo_1_Outputs` directory which contains the raw input and intermediate files:
-* **Input Document:** `Annex-A-Detailed-Software-Requirements-Specification-SRS.pdf`
-* **Compiled Rule Engine Text:** `generated_model.puml`
+Spec -> Code is a full-stack application that helps bridge the gap between a written specification and an implementation-ready design. Upload a PDF or TXT requirements document, review the AI-extracted domain model against its original source passages, then generate diagrams and starter code from the approved model.
 
-Below is the visual proof of the system's successful end-to-end execution.
+## Why it is useful
 
-#### 1. RESTful API Documentation (Swagger UI)
-This FastAPI backend exposes a fully documented, interactive API. The endpoints manage the entire lifecycle from document ingestion to extraction and diagram generation.
-![Swagger API Endpoints](Demo_1_Outputs/Swagger_API_Endpoints.png)
+Requirements are often written in natural language, while implementation depends on precise entities, fields, behaviors, and relationships. This project makes that translation visible and reviewable:
 
-#### 2. Database to PlantUML Compilation
-This image demonstrates the FastAPI pipeline successfully fetching the nested entities from the SQLite database and deterministically compiling them into syntactically perfect PlantUML text.
-![Database PlantUML Output Text](Demo_1_Outputs/Database_plantuml_output_text.png)
+- **Move from prose to structure:** Extract candidate classes, attributes, methods, and relationships from one or more specification documents.
+- **Keep the model grounded in its source:** Open the passage behind an extracted item and check it in context before accepting the design.
+- **Keep people in the loop:** Edit, add, or remove model elements before generating artifacts; AI output is a starting point for review, not a substitute for it.
+- **Generate consistent deliverables:** Build UML class and 3NF ER diagrams, export editable draw.io diagrams, and download C# classes.
+- **Separate interpretation from generation:** AI assists with interpreting requirements; deterministic generators create artifacts from the reviewed structured model.
 
-#### 3. Final Rendered Domain Model
-This image shows the final rendered diagram generated directly from the pipeline's output. It proves the backend rule engine accurately handled and mapped access modifiers, complex data types, and structural relationship multiplicities.
-I copied the producted PlantUML syntax and pasted on "https://www.planttext.com/" to produce this. This won't be needed in the next demos as i would have implemented it within my system for rendering the produced Diagram
-![Generated Diagram From Text](Demo_1_Outputs/Generated_Diagram_from_Text.png)
+## Demo guide
 
----
+The fastest way to explore the project is with a small requirements document, such as a to-do list app specification:
 
-## System Architecture & Workflow
-This FastAPI backend executes the following multi-stage pipeline:
+1. Open the [live application](https://an-ai-assisted-requirements-extraction.onrender.com/).
+2. Select one or more `.pdf` or `.txt` requirements files and choose **Upload & Extract Model**. The app creates a project from the uploaded file names and starts processing automatically.
+3. On the **Requirements review** screen, explore the extracted classes, attributes, methods, and relationships. Select an item to see its supporting passage in the source document; edit the model where needed.
+4. Confirm the reviewed model and generate its diagrams.
+5. Explore the UML class diagram and 3NF ERD. Download them as SVG or PNG images, or as editable draw.io files. Download the generated C# classes as a ZIP containing one file per class.
 
-1. **Document Ingestion:** Uploads one or more PDFs/TXTs into a single project and sanitizes broken Unicode characters.
-2. **Intelligent Chunking (`spaCy`):** Slices text using a sliding-window overlap to preserve context without exceeding LLM token limits.
-3. **Semantic Extraction (LLM):** Uses an AI API to read chunks and strictly format the output into a deterministic JSON metamodel via Pydantic validation.
-4. **Relational Persistence:** Maps the AI's output into a highly structured SQLite database (using fuzzy-matching for relationships to prevent string-mismatch orphans).
-5. **Rule Engine:** Deterministically compiles the database records into syntactically perfect PlantUML code.
+For best results, use a text-based PDF or a clear TXT document with concrete domain concepts and relationships. Review extracted results carefully before generating artifacts.
 
-The review flow links extracted classes, attributes, methods, and relationships to
-their source passages. Selecting an item opens its matching text highlighted in
-the original document. Generated C# classes download as a ZIP with one `.cs` file
-per class. UML and ERD diagrams can be downloaded as SVG or PNG images, or as
-editable `.drawio` files with class/entity fields and relationship cardinalities.
-Previously generated diagrams remain available while the model is unchanged;
-editing the model requires confirming and regenerating before the diagrams can
-be reopened.
+## How it works
 
-For the AI-Driven Job Matching Platform SRS, extraction preserves the canonical domain entities
-`JobSeeker`, `Employer`, `JobPosting`, `Admin`, `Notification`, `IntegrationPartner`,
-`Reporting`, and `AIEngine`. The ERD compiler renders one-to-many foreign keys on the
-dependent entity and expands many-to-many relationships into explicit junction entities.
+```text
+PDF / TXT specifications
+          |
+          v
+Text extraction and contextual chunking (spaCy)
+          |
+          v
+LLM-assisted structured model extraction (OpenAI, Pydantic validation)
+          |
+          v
+Relational persistence and human review
+          |
+          v
+Deterministic UML / ERD / code / API-contract generation
+```
 
----
+Uploaded document text is extracted and divided into overlapping chunks to preserve context. The extraction service uses OpenAI to identify candidate domain concepts and return structured data, which is validated and stored in a relational model. The Angular interface links model elements to source evidence and supports review and editing. After review, backend generators produce UML and ERD diagrams, C# classes, and an OpenAPI YAML contract.
 
-## Local Setup Instructions (Optional)
-If you wish to run the FastAPI server and test the Swagger UI locally:
+## Technology
 
-1. **Install Dependencies:**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   python -m spacy download en_core_web_sm
-   uvicorn main:app --reload
-   ```
+| Area | Technologies |
+| --- | --- |
+| Frontend | Angular 21, TypeScript, RxJS, Tailwind CSS, daisyUI |
+| API | Python, FastAPI, Pydantic |
+| Requirements processing | spaCy, PyPDF2, OpenAI API (`gpt-4o-mini`) |
+| Persistence | SQLAlchemy, SQLite for local development, PostgreSQL support |
+| Generated artifacts | UML class diagrams, 3NF ERDs, SVG, PNG, draw.io XML, C# classes, OpenAPI YAML |
+| Hosting | Render |
 
-## Hosting
+## Run locally
 
-The frontend and FastAPI API are hosted on Render. The Angular frontend is
-deployed as a Render Static Site; GitHub Pages is not used.
+### Backend
 
-### Backend (Render)
+```bash
+cd backend
+python -m venv .venv
+```
 
-1. Push this repository to GitHub, then create a Render Blueprint from the
-   repository. Render reads [render.yaml](./render.yaml), which installs the
-   dependencies in `backend/requirements.txt`, downloads the spaCy English
-   model, and starts Uvicorn on Render's assigned port.
-2. Set `OPENAI_API_KEY` in the Render service environment. The extraction
-   feature calls OpenAI and requires a valid API key; API usage may incur
-   charges.
-3. Set `DATABASE_URL` to a PostgreSQL connection URL for persistent storage.
-   The app still defaults to local SQLite for development, but Render's free
-   web-service filesystem is ephemeral, so local SQLite data can be lost when
-   the service restarts or redeploys.
+Activate the virtual environment, then install and start the API:
 
-### Frontend (Render Static Site)
+```bash
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
+uvicorn main:app --reload
+```
 
-Configure the Render Static Site with root directory `frontend`, build command
-`npm ci && npm run build -- --base-href /`, and publish directory
-`dist/frontend/browser`. Set its `API_BASE_URL` build-time variable to the
-public HTTPS URL of the deployed Render API (for example,
-`https://ai-assisted-uml-api.onrender.com`).
+The API is available at `http://localhost:8000`; interactive API documentation is at `http://localhost:8000/docs`. Local development uses SQLite by default. Set `OPENAI_API_KEY` in the environment to enable extraction; the OpenAI API may incur usage charges. Set `DATABASE_URL` to use PostgreSQL instead.
 
-The backend's `CORS_ORIGINS` in `render.yaml` must match the frontend's public
-origin (scheme and host, without a path or trailing slash). A push to the
-tracked branch triggers Render to deploy updated services.
+### Frontend
+
+In another terminal:
+
+```bash
+cd frontend
+npm ci
+npm start
+```
+
+Open the Angular development server URL shown in the terminal. The development frontend is configured to call the API at `http://localhost:8000`.
+
+
